@@ -1,0 +1,130 @@
+doc(font: Calibri, size: 11) {
+
+  page(margin: normal) {
+
+    banner(fill: #1F3864, accent: gold) {
+      center {
+        bold(color: white, size: 16) {
+          "Kafrelsheikh University"
+        }
+        color(value: lightgray, size: 12) {
+          "Faculty of Pharmacy"
+        }
+      }
+    }
+
+    center {
+      bold(size: 18, color: #1F3864) {
+        "Certificate of Graduation"
+      }
+    }
+
+    center {
+      italic(color: gray) {
+        "This is to certify that"
+      }
+    }
+
+    center {
+      box(fill: #F2F2F2, rounded: true, stroke: lightgray) {
+        bold(size: 16, color: #1F3864) {
+          "Mahmoud Ahmed Mohamed Ibrahim"
+        }
+      }
+    }
+
+    p {
+      "Born in Kafrelsheikh on "
+      bold { "25/10/2001" }
+      ", has successfully obtained the degree of "
+      bold(color: #1F3864) { "Bachelor of Pharmacy (Pharm D – Clinical)" }
+      "."
+    }
+
+    box(fill: #F9F9F9, rounded: true, stroke: lightgray) {
+
+      cols(ratio: 1:1) {
+
+        col {
+          p {
+            bold(color: gray) { "Academic Year: " }
+            "2024"
+          }
+
+          p {
+            bold(color: gray) { "Overall Grade: " }
+            color(value: #C00000) { "Very Good (C+)" }
+          }
+        }
+
+        col {
+          p {
+            bold(color: gray) { "Cumulative GPA: " }
+            color(value: #0070C0) { "3.25 / 4" }
+          }
+
+          p {
+            bold(color: gray) { "Intake: " }
+            "May"
+          }
+        }
+      }
+    }
+
+    callout(fill: #FFF2CC, stroke: #FFC000, tail: bottom-left) {
+      bold { "Internship:" }
+      p {
+        "Successfully completed the mandatory internship program "
+        "required for the Pharm D degree under the approved credit-hour system (June 2025)."
+      }
+    }
+
+    p {
+      "The result was approved by the Faculty Council on "
+      bold { "13/07/2025" }
+      " and by the University Council on "
+      bold { "29/07/2025" }
+      "."
+    }
+
+    cols(ratio: 1:1:1) {
+
+      col {
+        center {
+          line
+          color(value: gray) { "Dean of the Faculty" }
+        }
+      }
+
+      col {
+        center {
+          line
+          color(value: gray) { "Director of Student Affairs" }
+        }
+      }
+
+      col {
+        center {
+          line
+          color(value: gray) { "Authorized Officer" }
+        }
+      }
+    }
+
+    line
+
+    center {
+      italic(color: gray) {
+        "Issued on 28/08/2025 – Kafrelsheikh"
+      }
+    }
+
+    center {
+      badge(fill: #1F3864, color: white) {
+        "Serial No: 003253"
+      }
+    }
+
+  }
+
+}

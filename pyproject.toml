@@ -1,0 +1,15 @@
+[build-system]
+requires      = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "dok"
+version         = "0.1.0"
+requires-python = ">=3.11"
+dependencies    = []
+
+[project.scripts]
+dok = "dok.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["."]

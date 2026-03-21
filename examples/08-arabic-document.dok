@@ -1,0 +1,180 @@
+// Full RTL document in Arabic
+
+def عنوان-قسم(نص) {
+  bold(size: 14, color: #1F3864) { h2 { نص } }
+  line(stroke: #1F3864)
+  space(size: 6)
+}
+
+def بطاقة-معلومات(تسمية, قيمة) {
+  p {
+    bold(color: gray) { تسمية }
+    قيمة
+  }
+}
+
+doc(font: Calibri, size: 12) {
+
+  page(margin: normal) {
+
+    rtl {
+
+      banner(fill: #1F3864, color: white, accent: gold) {
+        center {
+          bold(size: 20) { "جامعة القاهرة" }
+          p { "كلية الهندسة — قسم علوم الحاسب" }
+        }
+      }
+
+      space(size: 12)
+
+      center {
+        bold(size: 22, color: #1F3864) {
+          p { "التقرير السنوي للقسم" }
+        }
+        italic(color: gray) {
+          p { "العام الأكاديمي ٢٠٢٤ / ٢٠٢٥" }
+        }
+      }
+
+      space(size: 12)
+
+      عنوان-قسم(نص: "نبذة عامة")
+
+      p {
+        "يسعدنا أن نقدم التقرير السنوي لقسم علوم الحاسب للعام الأكاديمي "
+        bold(color: #0070C0) { "٢٠٢٤ / ٢٠٢٥" }
+        ". شهد القسم خلال هذا العام تطورات ملحوظة في مجالات البحث العلمي "
+        "والتدريس وخدمة المجتمع."
+      }
+
+      box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
+        cols(ratio: 1:1:1) {
+          col {
+            center {
+              bold(color: gray, size: 9) { p { "عدد الطلاب" } }
+              bold(size: 20, color: #1F3864) { p { "١٬٢٤٠" } }
+            }
+          }
+          col {
+            center {
+              bold(color: gray, size: 9) { p { "أعضاء هيئة التدريس" } }
+              bold(size: 20, color: #1F3864) { p { "٤٨" } }
+            }
+          }
+          col {
+            center {
+              bold(color: gray, size: 9) { p { "الأبحاث المنشورة" } }
+              bold(size: 20, color: #1F3864) { p { "٨٧" } }
+            }
+          }
+        }
+      }
+
+      space(size: 8)
+
+      عنوان-قسم(نص: "الإنجازات الرئيسية")
+
+      ul {
+        li {
+          "حصل القسم على اعتماد "
+          bold(color: #C00000) { "ABET" }
+          " الدولي لبرنامج البكالوريوس"
+        }
+        li {
+          "تم إطلاق برنامج الماجستير المهني في "
+          bold { "الذكاء الاصطناعي التطبيقي" }
+        }
+        li { "فاز فريق الطلاب بالمركز الأول في مسابقة البرمجة العربية" }
+        li {
+          "زيادة الأبحاث المنشورة في مجلات عالمية بنسبة "
+          bold(color: green) { "٣٥٪" }
+        }
+      }
+
+      عنوان-قسم(نص: "البرامج الأكاديمية")
+
+      rtl { table(border: true, striped: true) {
+        tr {
+          th { rtl { bold {"البرنامج"}} }
+          th { "عدد الطلاب" }
+          th { "معدل التخرج" }
+          th { "الحالة" }
+        }
+        tr {
+          td { center {"بكالوريوس علوم الحاسب"} }
+          td { "٨٥٠" }
+          td { bold(color: green) { "٩٢٪" } }
+          td { badge(fill: green, color: white) { "معتمد" } }
+        }
+        tr {
+          td { "ماجستير علوم الحاسب" }
+          td { "١٨٠" }
+          td { bold(color: green) { "٨٨٪" } }
+          td { badge(fill: green, color: white) { "معتمد" } }
+        }
+        tr {
+          td { "ماجستير الذكاء الاصطناعي" }
+          td { "١٢٠" }
+          td { italic(color: gray) { "جديد" } }
+          td { badge(fill: #F39C12, color: white) { "قيد المراجعة" } }
+        }
+        tr {
+          td { "دكتوراه" }
+          td { "٩٠" }
+          td { bold(color: green) { "٧٥٪" } }
+          td { badge(fill: green, color: white) { "معتمد" } }
+        }
+      }}
+
+      space(size: 8)
+
+      عنوان-قسم(نص: "خطة العام القادم")
+
+      ol {
+        li { "افتتاح مختبر أبحاث الحوسبة السحابية بالتعاون مع شركة مايكروسوفت" }
+        li { "استقطاب ١٠ أعضاء هيئة تدريس جدد في تخصصات الأمن السيبراني وعلم البيانات" }
+        li { "إطلاق برنامج تدريب صيفي بالشراكة مع الشركات التقنية المحلية" }
+        li { "تطوير المناهج الدراسية لتشمل أحدث التقنيات في مجال الذكاء الاصطناعي التوليدي" }
+      }
+
+      callout(fill: #FFF3CD, stroke: #FFC107) {
+        bold { "ملاحظة: " }
+        "جميع الأرقام الواردة في هذا التقرير هي أرقام أولية وقابلة للتعديل "
+        "بعد المراجعة النهائية من مجلس القسم."
+      }
+
+      space(size: 24)
+
+      line(stroke: #1F3864)
+      space(size: 8)
+
+      cols(ratio: 1:1) {
+        col {
+          center {
+            line
+            bold { p { "أ.د. محمد عبد الرحمن" } }
+            italic(color: gray) { p { "رئيس القسم" } }
+          }
+        }
+        col {
+          center {
+            line
+            bold { p { "أ.د. فاطمة الزهراء حسن" } }
+            italic(color: gray) { p { "نائب رئيس القسم" } }
+          }
+        }
+      }
+
+      space(size: 12)
+
+      center {
+        italic(color: gray, size: 10) {
+          p { "صدر في القاهرة — ١٥ ديسمبر ٢٠٢٤" }
+        }
+      }
+
+    }
+
+  }
+}

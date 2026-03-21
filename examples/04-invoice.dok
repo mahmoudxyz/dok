@@ -1,0 +1,125 @@
+// Professional invoice
+
+doc(font: Calibri, size: 11) {
+
+  page(margin: normal) {
+
+    // Header
+    cols(ratio: 1:1) {
+      col {
+        bold(size: 28, color: #1F3864) { p { "INVOICE" } }
+        space(size: 4)
+        color(value: gray) {
+          p { "Invoice #: INV-2024-0847" }
+          p { "Date: December 15, 2024" }
+          p { "Due: January 14, 2025" }
+        }
+      }
+      col {
+        right {
+          bold(size: 14, color: #1F3864) { p { "Acme Design Studio" } }
+          color(value: gray) {
+            p { "123 Creative Avenue" }
+            p { "San Francisco, CA 94105" }
+            p { "hello@acmedesign.com" }
+          }
+        }
+      }
+    }
+
+    line(stroke: #1F3864)
+    space(size: 12)
+
+    // Bill to
+    bold(color: gray) { p { "BILL TO" } }
+    p { bold { "Globex Corporation" } }
+    color(value: gray) {
+      p { "456 Enterprise Blvd, Suite 200" }
+      p { "New York, NY 10001" }
+      p { "accounts@globex.com" }
+    }
+
+    space(size: 16)
+
+    // Line items
+    table(border: true) {
+      tr {
+        th { "Description" }
+        th { "Hours" }
+        th { "Rate" }
+        th { "Amount" }
+      }
+      tr {
+        td { "Website redesign — UX research and wireframes" }
+        td { "24" }
+        td { "$150" }
+        td { bold { "$3,600" } }
+      }
+      tr {
+        td { "Website redesign — Visual design and prototyping" }
+        td { "36" }
+        td { "$150" }
+        td { bold { "$5,400" } }
+      }
+      tr {
+        td { "Website redesign — Frontend development" }
+        td { "48" }
+        td { "$175" }
+        td { bold { "$8,400" } }
+      }
+      tr {
+        td { "Quality assurance and browser testing" }
+        td { "12" }
+        td { "$125" }
+        td { bold { "$1,500" } }
+      }
+    }
+
+    space(size: 8)
+
+    // Totals
+    right {
+      p {
+        "Subtotal: "
+        bold { "$18,900.00" }
+      }
+      p {
+        "Tax (8.5%): "
+        bold { "$1,606.50" }
+      }
+      line(stroke: #1F3864)
+      bold(size: 14, color: #1F3864) {
+        p { "Total Due: $20,506.50" }
+      }
+    }
+
+    space(size: 24)
+
+    // Payment info
+    box(fill: #F8F9FA, rounded: true) {
+      bold { "Payment Details" }
+      p {
+        bold(color: gray) { "Bank: " }
+        "First National Bank"
+      }
+      p {
+        bold(color: gray) { "Account: " }
+        "****4829"
+      }
+      p {
+        bold(color: gray) { "Routing: " }
+        "021000089"
+      }
+    }
+
+    space(size: 12)
+
+    center {
+      italic(color: gray, size: 10) {
+        p { "Thank you for your business!" }
+        p { "Payment is due within 30 days. Late payments subject to 1.5% monthly fee." }
+      }
+    }
+
+  }
+}

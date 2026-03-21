@@ -11,11 +11,11 @@
 A document is a stack of contexts.
 
 ```
-doc(font: Calibri, size: 11) {          ← sets document defaults
-  page(margin: normal) {                ← sets physical space
-    center {                            ← sets alignment
-      bold(color: navy) {               ← sets run style
-        h1 { "Quarterly Report" }       ← content atom
+doc(font: Calibri, size: 11) {          // sets document defaults
+  page(margin: normal) {                // sets physical space
+    center {                            // sets alignment
+      bold(color: navy) {               // sets run style
+        h1 { "Quarterly Report" }       // content atom
       }
     }
   }
@@ -28,11 +28,11 @@ No cascade. No specificity. No global state. Just a tree where context flows inw
 This is the whole language. Every feature is a node at one of five layers:
 
 ```
-doc    →  document defaults   (font, size, language)
+doc    →  document defaults   (font, size)
 page   →  physical space      (margin, paper, columns)
 layout →  arrangement         (center, right, rtl, row, cols, indent)
 style  →  appearance          (bold, italic, color, size, font)
-content → atoms               (h1 h2 h3 h4, p, box, line, "text")
+content → atoms               (h1-h4, p, box, line, table, ul/ol, img, link, "text")
 ```
 
 ---
@@ -47,7 +47,7 @@ Loops and conditionals live in your programming language, which already does the
 than any template engine could. Dok's job is to describe *what the document looks like*.
 Your language's job is to decide *what goes into it*.
 
-**Dok handles:** structure, appearance, shapes, layout, direction, composition.
+**Dok handles:** structure, appearance, shapes, layout, direction, composition, functions.
 
 **Your language handles:** which sections to include, how many items in a list,
 what color a status badge should be, whether to show a warning block.
@@ -56,32 +56,56 @@ The boundary is clean. The converter is simple. The output is predictable.
 
 ---
 
+## Installation
+
+```bash
+pip install dok
+```
+
+## Quick start
+
+**From the command line:**
+```bash
+python -m dok report.dok report.docx
+python -m dok --check report.dok      # validate only
+python -m dok --tree report.dok       # print node tree
+```
+
+**From Python:**
+```python
+import dok
+
+node = dok.parse('doc { h1 { "Hello World" } }')
+dok.to_docx(node, "hello.docx")
+```
+
+---
+
 ## Syntax
 
 One rule for every node in the language:
 
 ```
-name(props) { children }    ← node with props and children
-name { children }            ← node with no props
-name(props) { "text" }      ← node with text content
-"text"                       ← bare text node
-->                           ← arrow connector (inside row only)
-// comment                   ← line comment, stripped before parsing
+name(props) { children }    // node with props and children
+name { children }           // node with no props
+name(props)                 // self-closing node
+"text"                      // bare text node
+->                          // arrow connector (inside row only)
+---                         // page break
+// comment                  // line comment, stripped before parsing
 ```
 
 Props are always `key: value` pairs or bare flags (boolean true):
 
 ```
-fill: navy          ← key: named color
-fill: #4472C4       ← key: hex color
-fill: none          ← key: keyword
-size: 14            ← key: number
-rounded             ← bare flag (equivalent to rounded: true)
-shadow              ← bare flag
+fill: navy          // key: named color
+fill: #4472C4       // key: hex color
+size: 14            // key: number
+src: "image.png"    // key: string
+rounded             // bare flag (equivalent to rounded: true)
 ```
 
-That is the complete grammar. A parser for this is under 200 lines in any language.
-There are no operators, no expressions, no special cases.
+That is the complete grammar. There are no operators, no expressions, no special cases.
 
 ---
 
@@ -101,8 +125,6 @@ doc(font: Calibri, size: 11) {
 |------|--------|---------|
 | `font` | any system font name | `Calibri` |
 | `size` | number in points | `11` |
-| `lang` | `en` `ar` `he` `fr` ... | `en` |
-| `direction` | `ltr` `rtl` | `ltr` |
 
 `doc` is optional. If omitted, all defaults apply.
 
@@ -124,12 +146,11 @@ doc {
 }
 ```
 
-| Prop | Values | Meaning |
+| Prop | Values | Default |
 |------|--------|---------|
-| `margin` | `normal` `narrow` `wide` `none` | Page margins preset |
-| `margin` | `normal-top` `none-sides` | Directional override |
-| `paper` | `a4` `letter` `a3` | Paper size |
-| `cols` | `2` `3` | Column count (newspaper-style) |
+| `margin` | `normal` `narrow` `wide` `none` | `normal` |
+| `paper` | `a4` `letter` `a3` | `a4` |
+| `cols` | `1` `2` `3` | `1` |
 
 `page` is optional. If omitted, `margin: normal` and `paper: a4` apply.
 
@@ -138,7 +159,6 @@ doc {
 ### Layer 3 — layout
 
 Arrangement nodes. They affect how their children are placed on the page.
-They do not produce any visible element themselves — only their children do.
 
 ```
 center { h1 { "Title" } }
@@ -150,14 +170,9 @@ indent(level: 2) {
 }
 
 row {
-  box(fill: blue)   { "Step 1" }  ->
-  box(fill: orange) { "Step 2" }  ->
-  box(fill: green)  { "Step 3" }
-}
-
-cols {
-  col { p { "Left column content." }  }
-  col { p { "Right column content." } }
+  box(fill: blue, color: white)   { "Step 1" }  ->
+  box(fill: orange, color: white) { "Step 2" }  ->
+  box(fill: green, color: white)  { "Step 3" }
 }
 
 cols(ratio: 2:1) {
@@ -165,8 +180,6 @@ cols(ratio: 2:1) {
   col { p { "Narrower column." } }
 }
 ```
-
-**Layout nodes:**
 
 | Node | What it does |
 |------|-------------|
@@ -179,29 +192,13 @@ cols(ratio: 2:1) {
 | `indent(level: N)` | Indents children N levels (each level = 0.5 inch) |
 | `row { A -> B }` | Places children side by side with optional arrow connectors |
 | `cols { col col }` | Splits page into columns |
-| `float(right)` | Floats a shape to the right, text wraps around it |
-
-**`row` and the `->` connector:**
-
-Inside a `row`, `->` between two children draws an arrow connecting them.
-`-> "label" ->` draws a labeled arrow.
-
-```
-row {
-  box(fill: blue)   { "Input"   }
-  -> "data" ->
-  box(fill: orange) { "Process" }
-  ->
-  box(fill: green)  { "Output"  }
-}
-```
+| `float(side: right)` | Floats content to the right, text wraps around it |
 
 ---
 
 ### Layer 4 — style
 
-Style wrappers modify how text renders inside them. They can nest freely.
-`bold` inside `color(red)` inside `center` all compose correctly.
+Style wrappers modify how text renders inside them. They nest freely.
 
 ```
 p {
@@ -213,38 +210,26 @@ p {
 }
 ```
 
-**Style nodes:**
+| Node | Effect |
+|------|--------|
+| `bold` | Bold text |
+| `italic` | Italic text |
+| `underline` | Underlined text |
+| `strike` | Strikethrough text |
+| `sup` | Superscript |
+| `sub` | Subscript |
+| `color(value: red)` | Text color (named or hex) |
+| `size(value: 14)` | Font size in points |
+| `font(value: Georgia)` | Font family |
+| `highlight(value: yellow)` | Highlight color |
+| `span(bold, color: red, size: 14)` | Multiple styles at once |
 
-| Node | DOCX | Notes |
-|------|------|-------|
-| `bold` | `<w:b/>` | |
-| `italic` | `<w:i/>` | |
-| `underline` | `<w:u val="single"/>` | |
-| `strike` | `<w:strike/>` | |
-| `sup` | `<w:vertAlign val="superscript"/>` | |
-| `sub` | `<w:vertAlign val="subscript"/>` | |
-| `color(red)` | `<w:color/>` | Named or #hex |
-| `size(14)` | `<w:sz val="28"/>` | Points |
-| `font(Georgia)` | `<w:rFonts/>` | |
-| `highlight(yellow)` | `<w:highlight/>` | Named colors only |
-
-Style nodes can carry props directly instead of as children:
+Style nodes can carry inline props:
 
 ```
 // These are equivalent:
-bold { color(red) { "hello" } }
+bold { color(value: red) { "hello" } }
 bold(color: red) { "hello" }
-```
-
-When a style node has a prop that belongs to a different layer — like `color` on a paragraph —
-it applies to the layer it belongs to:
-
-```
-// color on a paragraph-level node sets the default text color for that paragraph
-p(color: gray) { "All text in this paragraph is gray by default." }
-
-// bold wrapping a p sets bold on all runs inside
-bold { p { "This whole paragraph is bold." } }
 ```
 
 ---
@@ -255,156 +240,284 @@ Content nodes are the atoms. They produce visible output.
 
 **Text blocks:**
 
-| Node | DOCX | Notes |
-|------|------|-------|
-| `h1` to `h4` | `<w:pStyle val="Heading1"/>` | Headings |
-| `p` | `<w:p>` | Paragraph |
-| `quote` | `<w:pStyle val="BlockText"/>` | Block quote |
-| `code` | `<w:pStyle val="SourceCode"/>` | Code block (monospace) |
-| `"text"` | `<w:t>` | Bare text node, always inside a block |
-| `---` | `<w:pageBreak/>` | Page break |
+| Node | Description |
+|------|-------------|
+| `h1` to `h4` | Headings |
+| `p` | Paragraph |
+| `quote` | Block quote |
+| `code` | Code block (monospace) |
+| `"text"` | Bare text node |
+| `---` | Page break |
 
-**Shape atoms:**
+**Lists:**
 
-| Node | Shape | DOCX preset |
-|------|-------|-------------|
-| `box` | Rectangle | `prstGeom prst="rect"` |
-| `box(rounded)` | Rounded rectangle | `prstGeom prst="roundRect"` |
-| `circle` | Circle / ellipse | `prstGeom prst="ellipse"` |
-| `diamond` | Diamond | `prstGeom prst="diamond"` |
-| `chevron` | Chevron | `prstGeom prst="chevron"` |
-| `callout` | Speech callout | `prstGeom prst="wedgeRectCallout"` |
-| `badge` | Small inline rect | inline `<w:drawing>` |
-| `banner` | Full-width block | full-width `<w:drawing>` |
-| `line` | Horizontal rule | `prstGeom prst="line"` |
+```
+ul {
+  li { "First bullet" }
+  li { "Second with " bold { "formatting" } }
+  li { "Third item" }
+}
+
+ol {
+  li { "Step one" }
+  li { "Step two" }
+  li { "Step three" }
+}
+```
+
+Lists produce native Word bullet/numbered lists with proper indentation.
+
+**Tables:**
+
+```
+table(border: true, striped: true) {
+  tr {
+    th { "Name" }
+    th { "Score" }
+  }
+  tr {
+    td { "Alice" }
+    td { bold(color: green) { "95" } }
+  }
+  tr {
+    td { "Bob" }
+    td { bold(color: blue) { "88" } }
+  }
+}
+```
+
+| Prop | Values | Default |
+|------|--------|---------|
+| `border` | boolean | `false` |
+| `striped` | boolean | `false` |
+
+`th` cells are bold with a shaded background. `td(colspan: 2)` spans columns.
+
+**Images:**
+
+```
+img(src: "photo.png", width: 4)
+img(src: "logo.jpg", width: 2, height: 1)
+```
+
+| Prop | Description |
+|------|-------------|
+| `src` | Image file path (required) |
+| `width` | Width in inches |
+| `height` | Height in inches (auto-calculated from aspect ratio if omitted) |
+| `alt` | Alt text |
+
+Supports PNG and JPEG. Images are embedded in the docx file.
+
+**Hyperlinks:**
+
+```
+p {
+  "Visit "
+  link(href: "https://example.com") { "our website" }
+  " for more info."
+}
+```
+
+Links are styled with blue underlined text automatically.
+
+**Page numbers:**
+
+```
+footer {
+  center {
+    p {
+      "Page "
+      page-number
+    }
+  }
+}
+```
+
+`page-number` inserts a live Word field that updates automatically.
+
+**Visual elements:**
+
+| Node | Description |
+|------|-------------|
+| `box` | Bordered/shaded content block |
+| `callout` | Side-bordered note block |
+| `banner` | Full-width colored block (great for page headers) |
+| `badge` | Small inline label |
+| `line` | Horizontal divider |
+
+These use native Word formatting (tables, borders, shading) for clean printing.
+
+```
+box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
+  bold { "Info Box" }
+  p { "Content inside the box." }
+}
+
+callout(fill: #FFF3CD, stroke: #FFC107, tail: top-left) {
+  bold { "Warning:" }
+  " Check your input data."
+}
+
+banner(fill: #1F3864, accent: gold, color: white) {
+  center { bold(size: 16) { "Company Name" } }
+}
+
+p { "Status: " badge(fill: green, color: white) { "ACTIVE" } }
+
+line(stroke: gray, dashed: true)
+```
 
 **Shape props:**
 
-| Prop | Values | Meaning |
-|------|--------|---------|
-| `fill` | color or `none` | Background fill |
-| `stroke` | color or `none` | Border color |
-| `stroke` | `dashed` `dotted` `thick` `thin` | Border style / width |
-| `color` | color | Text color inside the shape |
-| `rounded` | flag | Rounded corners |
+| Prop | Values | Description |
+|------|--------|-------------|
+| `fill` | color | Background color |
+| `stroke` | color | Border color |
+| `color` | color | Text color inside |
+| `rounded` | flag | Rounded corners (box only) |
 | `shadow` | flag | Drop shadow |
-| `accent` | color | Colored left-edge bar (banner only) |
-| `tail` | `left` `right` `bottom-left` | Callout tail direction |
+| `accent` | color | Left-edge accent bar (banner only) |
+| `tail` | `top-left` `top-right` `bottom-left` `bottom-right` | Callout pointer |
+| `dashed` | flag | Dashed line style |
+| `thick` | flag | Thick line |
 
-Text inside a shape is just children:
+**Spacer:**
 
 ```
-box(fill: navy, color: white, rounded) {
-  bold { "Important" }
-  p { "This content sits inside the box." }
+space(size: 24)    // 24pt vertical space
+```
+
+**Header and footer:**
+
+```
+doc {
+  header {
+    right { italic(color: gray, size: 9) { "Document Title" } }
+  }
+
+  footer {
+    center {
+      p {
+        color(value: gray, size: 9) { "Page " }
+        page-number
+      }
+    }
+  }
+
+  page { /* content */ }
 }
 ```
+
+Headers and footers appear on every page. Place them inside `doc` or `page`.
 
 **Color values:**
 
 Named: `red orange yellow green blue navy purple gray black white gold silver`
 Light variants: `lightblue lightgreen lightyellow lightgray lightpink`
-Hex: `#4472C4` `#1F3864` `#FF0000`
+Hex: `#4472C4` `#1F3864` `#FF0000` `#ABC`
 Transparent: `none`
 
 ---
 
-## Complete example
+## Functions and reuse
+
+Define reusable components with `def`:
 
 ```
-doc(font: Calibri, size: 11) {
-
-  page(margin: normal) {
-
-    // Decorative header banner
-    banner(fill: #1F3864, accent: gold) {
-      bold(color: white, size: 16) { "Acme Corporation" }
-    }
-
-    // Centered title block
-    center {
-      h1 { "Q4 2024 Financial Report" }
-      italic(color: gray) { p { "For internal distribution only" } }
-    }
-
-    // Body
-    h2 { "Executive Summary" }
-
-    p {
-      "Total revenue reached "
-      bold(color: #0070C0) { "$4.2 million" }
-      ", representing a "
-      bold(color: green) { "42% increase" }
-      " year-over-year."
-    }
-
-    // Warning callout
-    callout(fill: #FFF2CC, stroke: #FFC000, tail: bottom-left) {
-      bold { "Note:" }
-      p { "These figures are preliminary and subject to audit." }
-    }
-
-    h2 { "Process Overview" }
-
-    // Flow diagram
-    center {
-      row {
-        box(fill: #4472C4, color: white, rounded) { "Collect" }
-        ->
-        box(fill: #ED7D31, color: white, rounded) { "Analyse" }
-        ->
-        box(fill: #70AD47, color: white, rounded) { "Report"  }
-      }
-    }
-
-    h2 { "Regional Breakdown" }
-
-    // Two-column layout
-    cols(ratio: 2:1) {
-      col {
-        p { "EMEA showed strongest growth, driven by new enterprise contracts
-             in Germany and the UK. Headcount increased by 12 across the region." }
-      }
-      col {
-        box(fill: lightblue, rounded) {
-          center { bold(size: 18) { "+38%" } }
-          center { p { "EMEA growth" } }
-        }
-      }
-    }
-
-    // Arabic section
-    rtl {
-      h2 { "الملخص التنفيذي" }
-      p { "حقق إجمالي الإيرادات " bold { "4.2 مليون دولار" } "." }
-    }
-
+def alert-box(message) {
+  box(fill: #FFF3CD, stroke: #FFC107, rounded: true) {
+    bold { "Warning: " }
+    message
   }
+}
 
+def info-row(label, value) {
+  p {
+    bold(color: gray) { label }
+    value
+  }
+}
+
+// Use them
+alert-box(message: "Check your data before submitting.")
+info-row(label: "Name: ", value: "Alice Johnson")
+```
+
+Functions support:
+- **Parameters** — referenced by name in the function body
+- **Children** — use the `children` keyword for composable wrappers:
+
+```
+def card(title) {
+  box(fill: #F5F5F5, rounded: true) {
+    bold(size: 14) { title }
+    children
+  }
+}
+
+card(title: "Summary") {
+  p { "This content goes where 'children' is." }
+  p { "Multiple children work too." }
 }
 ```
 
 ---
 
-## Builder API
+## Imports
+
+Split large documents into reusable modules:
+
+```
+// components.dok
+def company-header(title) {
+  banner(fill: #1F3864, accent: gold, color: white) {
+    center { bold(size: 16) { title } }
+  }
+}
+
+def signature-block(name) {
+  center {
+    line
+    color(value: gray) { name }
+  }
+}
+```
+
+```
+// report.dok
+import "components.dok"
+
+doc {
+  page {
+    company-header(title: "Annual Report")
+    h1 { "Introduction" }
+    p { "..." }
+    signature-block(name: "CEO")
+  }
+}
+```
+
+Imports are resolved relative to the importing file's directory. Circular imports are detected and rejected.
+
+---
+
+## Builder API (Python)
 
 The builder API is for when content is dynamic — lists of items, conditional sections,
-data-driven shapes. Your language handles the logic. Dok handles the shape.
+data-driven content. Your language handles the logic. Dok handles the shape.
 
 Every builder function returns a `Node`. Nodes are plain data — name, props, children.
 They are immutable, composable, and have no side effects.
 
-### Python
-
 ```python
 import dok
 
-# Static document
 doc = dok.doc(
     dok.page(
         dok.banner("Acme Corp", fill="#1F3864", accent="gold", color="white"),
         dok.h1("Report"),
-        dok.p("Summary here."),
+        dok.p("Revenue grew by ", dok.bold("42%", color="green"), "."),
         margin="normal",
     )
 )
@@ -412,368 +525,243 @@ doc = dok.doc(
 dok.to_docx(doc, "report.docx")
 ```
 
-**Loops — just Python:**
-```python
-region_nodes = [
-    dok.box(
-        dok.bold(region.name),
-        dok.p(region.summary),
-        fill="lightblue", rounded=True,
-    )
-    for region in regions
-]
+**All builder functions:**
 
+```python
+# Document structure
+dok.doc(*children, font=..., size=...)
+dok.page(*children, margin=..., paper=..., cols=...)
+
+# Layout
+dok.center(*children)
+dok.right(*children)
+dok.justify(*children)
+dok.rtl(*children)
+dok.ltr(*children)
+dok.indent(*children, level=1)
+dok.row(*children)
+dok.cols(*children, ratio="1:1")
+dok.col(*children)
+dok.float_right(*children)
+dok.float_left(*children)
+
+# Style
+dok.bold(*children, color=..., size=..., font=...)
+dok.italic(*children, ...)
+dok.underline(*children, ...)
+dok.strike(*children, ...)
+dok.sup(*children)
+dok.sub(*children)
+dok.color("red", *children)
+dok.size(14, *children)
+dok.font("Georgia", *children)
+dok.highlight("yellow", *children)
+dok.span(*children, bold=True, color=..., size=...)
+
+# Text blocks
+dok.h1("Title", ...)    # also h2, h3, h4
+dok.p(*children, ...)
+dok.quote(*children)
+dok.code("source code")
+
+# Lists
+dok.ul(dok.li("item"), dok.li("item"))
+dok.ol(dok.li("first"), dok.li("second"), start=1)
+dok.li(*children)
+
+# Tables
+dok.table(
+    dok.tr(dok.th("Header"), dok.th("Header")),
+    dok.tr(dok.td("Cell"), dok.td("Cell")),
+    border=True, striped=True,
+)
+
+# Visual elements
+dok.box(*children, fill=..., stroke=..., rounded=True)
+dok.callout(*children, fill=..., stroke=..., tail="top-left")
+dok.banner(*children, fill=..., accent=..., color=...)
+dok.badge("label", fill=..., color=...)
+dok.line(stroke=..., dashed=True)
+
+# Inline elements
+dok.img("photo.png", width=4)
+dok.link("https://example.com", "click here")
+dok.page_number()
+
+# Meta
+dok.header(*children)
+dok.footer(*children)
+dok.space(size=12)
+dok.page_break()
+dok.arrow(label=None)
+```
+
+**Dynamic content — just Python:**
+
+```python
+# Loops
+items = [dok.li(item.name) for item in data]
+doc = dok.doc(dok.ul(*items))
+
+# Conditionals — None children are silently dropped
 doc = dok.doc(
     dok.page(
-        dok.h1("Regional Performance"),
-        *region_nodes,
+        dok.callout("CONFIDENTIAL", fill="red", color="white") if classified else None,
+        dok.h1(report.title),
+        *[dok.p(section.text) for section in report.sections],
     )
 )
 ```
 
-**Conditionals — just Python:**
+**Output formats:**
+
 ```python
-def status_badge(status):
-    color = {"active": "green", "pending": "orange", "closed": "gray"}.get(status, "gray")
-    return dok.badge(status.upper(), fill=color, color="white")
+# Write to file
+dok.to_docx(node, "report.docx")
 
-doc = dok.doc(
-    dok.page(
-        # None children are silently ignored
-        dok.callout("CONFIDENTIAL", fill="red", color="white") if is_confidential else None,
-        dok.h1("Report"),
-        *[dok.p(dok.bold(item.name), " — ", status_badge(item.status))
-          for item in items],
-    )
-)
-```
+# Get bytes (for HTTP responses, S3, etc.)
+data = dok.to_bytes(node)
 
-**Composable helpers — just functions:**
-```python
-def metric_card(label, value, up=None):
-    trend = dok.span("↑", color="green") if up is True  else \
-            dok.span("↓", color="red")   if up is False else None
-    return dok.box(
-        dok.p(label, color="gray"),
-        dok.bold(value, size=20),
-        trend,
-        fill="white", stroke="lightgray", rounded=True,
-    )
-
-dashboard = dok.row(
-    metric_card("Revenue",   "$4.2M", up=True),
-    metric_card("Customers", "1,840", up=True),
-    metric_card("Churn",     "2.1%",  up=False),
-)
-```
-
-### JavaScript / TypeScript
-
-```typescript
-import * as dok from 'dok'
-
-// Loops — just JavaScript
-const regionNodes = regions.map(region =>
-    dok.box(
-        dok.bold(region.name),
-        dok.p(region.summary),
-        { fill: "lightblue", rounded: true }
-    )
-)
-
-// Conditionals — just JavaScript
-const doc = dok.doc(
-    dok.page(
-        isConfidential && dok.callout("CONFIDENTIAL", { fill: "red", color: "white" }),
-        dok.h1("Report"),
-        ...regionNodes,
-        { margin: "normal" }
-    )
-)
-
-// false / null / undefined children are silently ignored
-await dok.toDocx(doc, "report.docx")
-```
-
-**Composable helpers:**
-```typescript
-const statusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-        active: "green", pending: "orange", closed: "gray"
-    }
-    return dok.badge(status.toUpperCase(), {
-        fill: colors[status] ?? "gray",
-        color: "white",
-    })
-}
-
-const section = (title: string, items: Item[]) => [
-    dok.h2(title),
-    ...items.map(item =>
-        dok.p(dok.bold(item.name), " — ", statusBadge(item.status))
-    ),
-]
-```
-
-### Kotlin
-
-Kotlin's trailing lambda syntax makes Dok read like Compose:
-
-```kotlin
-val doc = doc(font = "Calibri", size = 11) {
-    page(margin = "normal") {
-
-        banner(fill = "#1F3864", accent = "gold") {
-            bold(color = "white", size = 16) { +"Acme Corp" }
-        }
-
-        center {
-            h1 { +"Q4 Report" }
-        }
-
-        // Loops — just Kotlin
-        for (region in regions) {
-            box(fill = "lightblue", rounded = true) {
-                bold { +region.name }
-                p   { +region.summary }
-            }
-        }
-
-        // Conditionals — just Kotlin
-        if (isConfidential) {
-            callout(fill = "red", color = "white") { +"CONFIDENTIAL" }
-        }
-    }
-}
-
-doc.toDocx("report.docx")
-```
-
-### Go
-
-```go
-doc := dok.Doc(
-    dok.Page(
-        dok.Banner("Acme Corp",
-            dok.Fill("#1F3864"),
-            dok.Accent("gold"),
-            dok.Color("white"),
-        ),
-        dok.H1("Q4 Report"),
-        buildRegions(regions)...,  // your function returning []dok.Node
-        dok.Margin("normal"),
-    ),
-    dok.Font("Calibri"),
-    dok.Size(11),
-)
-
-dok.ToDocx(doc, "report.docx")
+# Parse .dok string
+node = dok.parse(source_string)
+node = dok.parse(source_string, base_dir=Path("./templates"))  # for imports
 ```
 
 ---
 
-## Mixing string syntax and builder API
+## Pipeline
 
-String syntax is for static content. Builder API is for dynamic content. Mix freely.
-Both produce the same internal tree — the converter sees no difference.
+The compilation pipeline:
 
-```python
-import dok
+```
+source → lex → parse → resolve_imports → resolve_functions → validate → convert → write
+```
 
-# Load static templates once
-header = dok.parse("""
-  banner(fill: #1F3864, accent: gold) {
-    bold(color: white, size: 16) { "Acme Corporation" }
+1. **Lexer** — tokenizes the source string
+2. **Parser** — builds an AST of Node trees
+3. **Import resolver** — reads imported files, injects their nodes
+4. **Function resolver** — expands function calls by substituting parameters
+5. **Validator** — checks structure rules, prop types, printable constraints
+6. **Converter** — walks the AST with context inheritance, produces a DocxModel
+7. **Writer** — serializes the DocxModel to OOXML inside a ZIP archive
+
+All errors carry source locations (line, column) and human-readable hints.
+
+---
+
+## Error handling
+
+All errors include the source location and a hint for fixing the problem:
+
+```
+ParseError at line 5, col 12: Expected '}' to close block
+  Hint: Every '{' needs a matching '}'.
+
+ValidationError at line 8, col 3: 'li' must be inside 'ul' or 'ol'
+  Hint: ul { li { "item" } }
+
+ValidationError at line 12, col 5: Invalid color 'notacolor' for 'bold.color'
+  Hint: Use a named color (red, navy, gold, ...) or hex (#FF0000, #ABC).
+
+ResolveError at line 3: Missing parameter 'name' in call to 'greeting'
+  Hint: Usage: greeting(name: ...)
+```
+
+The validator collects all errors in a single pass — you see everything that's wrong at once, not one error at a time.
+
+---
+
+## Complete example
+
+```
+import "components.dok"
+
+def metric(label, value, trend_color) {
+  box(fill: #F8F9FA, rounded: true) {
+    p { color(value: gray) { label } }
+    bold(size: 20, color: trend_color) { value }
   }
-""")
+}
 
-footer = dok.parse("""
-  center {
-    italic(color: gray) { p { "Confidential — Internal Use Only" } }
+doc(font: Calibri, size: 11) {
+
+  header {
+    right { italic(color: gray, size: 9) { "Q4 2024 Report" } }
   }
-""")
 
-# Build dynamic body in Python
-body = [
-    dok.h1(report.title),
-    dok.p(report.summary),
-    *[dok.box(dok.bold(s.title), dok.p(s.body), fill="lightblue")
-      for s in report.sections
-      if s.visible],
-]
+  footer {
+    center { p { color(value: gray, size: 9) { "Page " } page-number } }
+  }
 
-# Compose
-doc = dok.doc(dok.page(header, *body, footer))
-dok.to_docx(doc, "report.docx")
-```
+  page(margin: normal) {
 
----
+    banner(fill: #1F3864, accent: gold, color: white) {
+      center { bold(size: 16) { "Acme Corporation" } }
+    }
 
-## Architecture — how to implement Dok
+    center {
+      h1 { "Q4 2024 Financial Report" }
+      italic(color: gray) { "For internal distribution only" }
+    }
 
-### The node tree
+    // Key metrics
+    row {
+      metric(label: "Revenue", value: "$4.2M", trend_color: green)
+      metric(label: "Customers", value: "1,840", trend_color: green)
+      metric(label: "Churn", value: "2.1%", trend_color: red)
+    }
 
-Both string parsing and the builder API produce the same structure:
+    h2 { "Regional Breakdown" }
 
-```
-Node:
-  name:     str            // "box", "h1", "bold", "center", "doc", ...
-  props:    dict[str, any] // { "fill": "navy", "rounded": True }
-  children: list[Node]     // other nodes
+    table(border: true, striped: true) {
+      tr {
+        th { "Region" }
+        th { "Revenue" }
+        th { "Growth" }
+      }
+      tr {
+        td { "EMEA" }
+        td { "$1.8M" }
+        td { bold(color: green) { "+38%" } }
+      }
+      tr {
+        td { "Americas" }
+        td { "$1.5M" }
+        td { bold(color: green) { "+22%" } }
+      }
+      tr {
+        td { "APAC" }
+        td { "$0.9M" }
+        td { bold(color: orange) { "+8%" } }
+      }
+    }
 
-TextNode:
-  text: str
+    space(size: 12)
 
-ArrowNode:
-  label: str | None        // None for plain ->
-```
+    callout(fill: #FFF2CC, stroke: #FFC000, tail: bottom-left) {
+      bold { "Note:" }
+      p { "These figures are preliminary and subject to audit." }
+    }
 
-`None` / `false` / `undefined` in children lists are silently dropped during construction.
-This enables conditional children without if-else guards at every callsite.
+    h2 { "Key Highlights" }
 
-### Parsing the string syntax
+    ul {
+      li { "Enterprise contracts in Germany and UK drove EMEA growth" }
+      li { "Customer acquisition cost decreased by " bold { "15%" } }
+      li { "New product line launched in Q3 reaching " bold { "$400K" } " revenue" }
+    }
 
-The grammar is LL(1). No ambiguity, no backtracking:
+    space(size: 24)
 
-```
-document  = node*
-node      = NAME props? block
-          | STRING                    // bare text node
-          | '->' STRING? '->'         // arrow with optional label
-          | '->'                      // plain arrow
+    cols(ratio: 1:1:1) {
+      col { center { line  color(value: gray) { "CEO" } } }
+      col { center { line  color(value: gray) { "CFO" } } }
+      col { center { line  color(value: gray) { "Board Secretary" } } }
+    }
 
-props     = '(' prop (',' prop)* ')'
-prop      = NAME ':' value
-          | NAME                      // bare flag → true
-
-block     = '{' node* '}'
-value     = NAME | STRING | NUMBER | '#' HEX+
-```
-
-Tokeniser produces: `NAME STRING NUMBER COLOR LPAREN RPAREN LBRACE RBRACE COLON COMMA ARROW`
-
-### The converter — context inheritance
-
-The converter carries two small context structs as it walks the tree.
-Wrapper nodes update context for their subtree. Leaf nodes consume context.
-
-```
-ParaCtx {
-  align:     left | center | right | justify
-  direction: ltr | rtl
-  indent:    int
-  spacing:   { before, after }
+  }
 }
-
-RunCtx {
-  bold:      bool
-  italic:    bool
-  underline: bool
-  strike:    bool
-  color:     str | None
-  highlight: str | None
-  size:      int | None
-  font:      str | None
-}
-
-convert(node, para_ctx, run_ctx):
-  match node.name:
-    "doc":      set_doc_defaults(node.props);  recurse children
-    "page":     begin_section(node.props);     recurse children;  end_section()
-    "center":   recurse with para_ctx.align = center
-    "right":    recurse with para_ctx.align = right
-    "justify":  recurse with para_ctx.align = justify
-    "rtl":      recurse with para_ctx.direction = rtl
-    "indent":   recurse with para_ctx.indent += level
-    "bold":     recurse with run_ctx.bold = true
-    "italic":   recurse with run_ctx.italic = true
-    "color(x)": recurse with run_ctx.color = x
-    "size(n)":  recurse with run_ctx.size = n
-    "p":        emit_paragraph(node.children, para_ctx, run_ctx)
-    "h1"–"h4":  emit_heading(level, node.children, para_ctx, run_ctx)
-    "quote":    emit_paragraph(node.children, para_ctx.as_quote(), run_ctx)
-    "code":     emit_paragraph(node.children, para_ctx.as_code(), run_ctx)
-    "box":      emit_shape("rect",     node.props, node.children)
-    "circle":   emit_shape("ellipse",  node.props, node.children)
-    "diamond":  emit_shape("diamond",  node.props, node.children)
-    "chevron":  emit_shape("chevron",  node.props, node.children)
-    "banner":   emit_banner(node.props, node.children)
-    "badge":    emit_inline_shape(node.props, node.children)
-    "callout":  emit_shape("wedgeRectCallout", node.props, node.children)
-    "line":     emit_line(node.props)
-    "row":      emit_row(node.children)
-    "cols":     emit_cols(node.children, node.props)
-    TextNode:   emit_run(node.text, run_ctx)
-    "---":      emit_page_break()
 ```
-
-Key properties of this design:
-- Context flows downward only. Children cannot affect parents.
-- Each node type has exactly one converter function.
-- No cascade resolution. No specificity calculation.
-- The converter is stateless except for the two context structs.
-- Time complexity: O(n) where n is number of nodes.
-
-### DOCX output
-
-The converter writes directly to a ZIP archive containing:
-
-```
-[Content_Types].xml   ← fixed boilerplate
-_rels/.rels           ← fixed boilerplate
-word/document.xml     ← THE OUTPUT — generated from node tree
-word/styles.xml       ← fixed set of named styles (Heading1–4, SourceCode, BlockText)
-word/settings.xml     ← fixed boilerplate
-```
-
-Adjacent text runs with identical `RunCtx` are merged into one `<w:r>` before emission.
-The output never has one `<w:r>` per word.
-
----
-
-## DOCX mapping — complete
-
-| Dok | DOCX construct |
-|-----|----------------|
-| `doc(font: X)` | `<w:docDefaults>` in `styles.xml` |
-| `page(margin: normal)` | `<w:sectPr>` with standard margins |
-| `page(cols: 2)` | `<w:sectPr><w:cols w:num="2"/>` |
-| `center { }` | `<w:pPr><w:jc w:val="center"/>` |
-| `right { }` | `<w:pPr><w:jc w:val="right"/>` |
-| `justify { }` | `<w:pPr><w:jc w:val="both"/>` |
-| `rtl { }` | `<w:pPr><w:bidi/>` + `<w:pPr><w:rPr><w:rtl/>` |
-| `indent(level: 2)` | `<w:pPr><w:ind w:left="1440"/>` |
-| `bold` | `<w:rPr><w:b/>` |
-| `italic` | `<w:rPr><w:i/>` |
-| `underline` | `<w:rPr><w:u w:val="single"/>` |
-| `strike` | `<w:rPr><w:strike/>` |
-| `color(red)` | `<w:rPr><w:color w:val="FF0000"/>` |
-| `size(14)` | `<w:rPr><w:sz w:val="28"/>` |
-| `font(Georgia)` | `<w:rPr><w:rFonts w:ascii="Georgia"/>` |
-| `sup` | `<w:rPr><w:vertAlign w:val="superscript"/>` |
-| `sub` | `<w:rPr><w:vertAlign w:val="subscript"/>` |
-| `h1` | `<w:pPr><w:pStyle w:val="Heading1"/>` |
-| `p` | `<w:p>` |
-| `quote` | `<w:pPr><w:pStyle w:val="BlockText"/>` |
-| `code` | `<w:pPr><w:pStyle w:val="SourceCode"/>` |
-| `---` | `<w:p><w:r><w:br w:type="page"/>` |
-| `box` | `<w:drawing><wps:wsp><a:prstGeom prst="rect"/>` |
-| `box(rounded)` | `<a:prstGeom prst="roundRect"/>` |
-| `circle` | `<a:prstGeom prst="ellipse"/>` |
-| `diamond` | `<a:prstGeom prst="diamond"/>` |
-| `chevron` | `<a:prstGeom prst="chevron"/>` |
-| `callout` | `<a:prstGeom prst="wedgeRectCallout"/>` |
-| `fill: navy` | `<a:solidFill><a:srgbClr val="000080"/>` |
-| `fill: none` | `<a:noFill/>` |
-| `stroke: dashed` | `<a:ln><a:prstDash val="dash"/>` |
-| `shadow` | `<a:effectLst><a:outerShdw/>` |
-| `banner` | Full-width inline `<w:drawing>` rect + optional accent rect |
-| `badge` | Inline `<w:drawing>` small rect |
-| `line` | `<w:drawing>` line shape, full width |
-| `row { A -> B }` | `<w:drawing>` group (`wpg:wgp`) + connector shapes |
-| `cols { col col }` | `<w:tbl>` single-row borderless table |
-| `float(right)` | `<wp:anchor wrapSquare wrapText="bothSides"/>` |
-| Text inside shape | `<wps:txbx><w:txbxContent><w:p><w:r><w:t>` |
 
 ---
 
@@ -784,4 +772,3 @@ Diffs cleanly. Readable by non-developers.
 
 For purely dynamic documents generated in code, no `.dok` file is needed —
 build the node tree directly with the builder API and pass it to the converter.
-EOF

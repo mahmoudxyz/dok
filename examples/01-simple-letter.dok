@@ -1,0 +1,49 @@
+// A simple business letter
+
+doc(font: Calibri, size: 11) {
+
+  page(margin: normal) {
+
+    right {
+      p { "March 21, 2026" }
+    }
+
+    space(size: 24)
+
+    p { "Dear Hiring Manager," }
+
+    space(size: 12)
+
+    p {
+      "I am writing to express my interest in the "
+      bold { "Software Engineer" }
+      " position at your company. With five years of experience in "
+      "backend development and distributed systems, I believe I would "
+      "be a strong addition to your team."
+    }
+
+    p {
+      "In my current role at "
+      bold { "Acme Technologies" }
+      ", I led the redesign of our data pipeline, reducing processing "
+      "time by "
+      bold(color: green) { "60%" }
+      " and improving reliability from 99.2% to "
+      bold(color: green) { "99.95%" }
+      " uptime."
+    }
+
+    p {
+      "I look forward to discussing how my experience aligns with "
+      "your team's goals. Thank you for your time and consideration."
+    }
+
+    space(size: 24)
+
+    p { "Sincerely," }
+    space(size: 12)
+    bold { p { "Jane Smith" } }
+    italic(color: gray) { p { "jane.smith@email.com" } }
+
+  }
+}

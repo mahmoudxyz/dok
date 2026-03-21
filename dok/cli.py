@@ -47,17 +47,25 @@ def main() -> None:
 
     input_path = Path(args.input)
     if not input_path.exists():
-        print(f"Error: file not found: {input_path}", file=sys.stderr)
-        sys.exit(1)
+        _die(f"File not found: {input_path}")
 
     source = input_path.read_text(encoding="utf-8")
 
-    # --- Parse ---
+    # --- Parse (includes resolve + validate) ---
+    from dok.errors import DokError, ValidationErrors
+
     try:
         import dok
-        node = dok.parse(source)
-    except Exception as e:
-        print(f"Parse error: {e}", file=sys.stderr)
+        node = dok.parse(source, base_dir=input_path.parent)
+    except ValidationErrors as e:
+        # Multiple errors — print them all
+        print(f"Validation failed for {input_path}:", file=sys.stderr)
+        for err in e.errors:
+            print(f"  {err}", file=sys.stderr)
+        sys.exit(1)
+    except DokError as e:
+        print(f"Error in {input_path}:", file=sys.stderr)
+        print(f"  {e}", file=sys.stderr)
         sys.exit(1)
 
     if args.check:
@@ -73,14 +81,19 @@ def main() -> None:
 
     try:
         import dok
-        dok.to_docx(node, output_path)
+        dok.to_docx(node, output_path, base_dir=input_path.parent)
         print(f"Written: {output_path}")
-    except NotImplementedError:
-        print("Error: converter not yet implemented", file=sys.stderr)
+    except DokError as e:
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+def _die(msg: str) -> None:
+    print(f"Error: {msg}", file=sys.stderr)
+    sys.exit(1)
 
 
 def _print_tree(node, indent: int = 0) -> None:

@@ -1,0 +1,136 @@
+// Quarterly sales report with tables and charts
+
+def section-title(text) {
+  h2(color: #1F3864) { text }
+  line(stroke: #1F3864)
+}
+
+doc(font: Calibri, size: 11) {
+
+  header {
+    right { italic(color: gray, size: 9) { "Q4 2024 Sales Report — Confidential" } }
+  }
+
+  footer {
+    center {
+      p { color(value: gray, size: 9) { "Page " } page-number }
+    }
+  }
+
+  page(margin: normal) {
+
+    banner(fill: #1F3864, color: white) {
+      center {
+        bold(size: 20) { "Quarterly Sales Report" }
+        p { "Q4 2024 — October to December" }
+      }
+    }
+
+    space(size: 12)
+
+    section-title(text: "Executive Summary")
+
+    p {
+      "Total sales for Q4 reached "
+      bold(color: #0070C0) { "$2.4 million" }
+      ", exceeding our target by "
+      bold(color: green) { "12%" }
+      ". All three regions contributed to growth, with EMEA "
+      "leading at 38% year-over-year increase."
+    }
+
+    callout(fill: #E8F4FD, stroke: #2196F3) {
+      bold { "Key takeaway: " }
+      "Enterprise segment drove 65% of new revenue. "
+      "Recommend increasing enterprise sales headcount in Q1."
+    }
+
+    space(size: 12)
+
+    section-title(text: "Sales by Region")
+
+    table(border: true, striped: true) {
+      tr {
+        th { "Region" }
+        th { "Q4 Revenue" }
+        th { "vs Q3" }
+        th { "vs Target" }
+      }
+      tr {
+        td { "EMEA" }
+        td { "$980,000" }
+        td { bold(color: green) { "+38%" } }
+        td { bold(color: green) { "+15%" } }
+      }
+      tr {
+        td { "Americas" }
+        td { "$870,000" }
+        td { bold(color: green) { "+22%" } }
+        td { bold(color: green) { "+8%" } }
+      }
+      tr {
+        td { "APAC" }
+        td { "$550,000" }
+        td { bold(color: orange) { "+8%" } }
+        td { bold(color: red) { "-3%" } }
+      }
+    }
+
+    space(size: 12)
+
+    section-title(text: "Top Deals Closed")
+
+    table(border: true) {
+      tr {
+        th { "Client" }
+        th { "Deal Size" }
+        th { "Product" }
+        th { "Sales Rep" }
+      }
+      tr {
+        td { "Globex Corp" }
+        td { bold { "$320,000" } }
+        td { "Enterprise Suite" }
+        td { "M. Johnson" }
+      }
+      tr {
+        td { "Initech" }
+        td { bold { "$215,000" } }
+        td { "Platform Pro" }
+        td { "S. Williams" }
+      }
+      tr {
+        td { "Umbrella Ltd" }
+        td { bold { "$180,000" } }
+        td { "Enterprise Suite" }
+        td { "A. Chen" }
+      }
+      tr {
+        td { "Wayne Industries" }
+        td { bold { "$165,000" } }
+        td { "Analytics Add-on" }
+        td { "R. Patel" }
+      }
+    }
+
+    space(size: 12)
+
+    section-title(text: "Q1 Priorities")
+
+    ol {
+      li { "Hire 3 enterprise sales reps for EMEA region" }
+      li { "Launch partner referral program targeting mid-market" }
+      li { "Develop APAC-specific pricing strategy to improve target attainment" }
+      li { "Roll out updated CRM pipeline tracking by end of January" }
+    }
+
+    space(size: 24)
+
+    callout(fill: #FFF3CD, stroke: #FFC000) {
+      bold { "Reminder: " }
+      "Q1 planning meeting scheduled for January 8th. "
+      "All regional leads to present their 90-day plans."
+    }
+
+  }
+}

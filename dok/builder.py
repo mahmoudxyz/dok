@@ -338,3 +338,91 @@ def arrow(label: str | None = None) -> ArrowNode:
     )
     """
     return ArrowNode(label=label)
+
+
+# ---------------------------------------------------------------------------
+# Lists
+# ---------------------------------------------------------------------------
+
+def ul(*children: Node | str | None) -> ElementNode:
+    """Unordered (bullet) list. Children should be li() nodes."""
+    return _node("ul", *children)
+
+def ol(*children: Node | str | None, start: int = 1) -> ElementNode:
+    """Ordered (numbered) list. Children should be li() nodes."""
+    return _node("ol", *children, start=start)
+
+def li(*children: Node | str | None) -> ElementNode:
+    """List item inside ul() or ol()."""
+    return _node("li", *children)
+
+
+# ---------------------------------------------------------------------------
+# Tables
+# ---------------------------------------------------------------------------
+
+def table(*children: Node | str | None, **props: Any) -> ElementNode:
+    """
+    Data table. Children should be tr() rows.
+
+    dok.table(
+        dok.tr(dok.th("Name"), dok.th("Score")),
+        dok.tr(dok.td("Alice"), dok.td("95")),
+        border=True, striped=True,
+    )
+    """
+    return _node("table", *children, **props)
+
+def tr(*children: Node | str | None) -> ElementNode:
+    """Table row."""
+    return _node("tr", *children)
+
+def td(*children: Node | str | None, **props: Any) -> ElementNode:
+    """Table cell."""
+    return _node("td", *children, **props)
+
+def th(*children: Node | str | None, **props: Any) -> ElementNode:
+    """Table header cell (bold, shaded)."""
+    return _node("th", *children, **props)
+
+
+# ---------------------------------------------------------------------------
+# Inline elements
+# ---------------------------------------------------------------------------
+
+def img(src: str, **props: Any) -> ElementNode:
+    """
+    Inline image.
+
+    dok.img("photo.png", width=4)
+    """
+    return _node("img", src=src, **props)
+
+def link(href: str, *children: Node | str | None) -> ElementNode:
+    """
+    Hyperlink.
+
+    dok.link("https://example.com", "Click here")
+    """
+    return _node("link", *children, href=href)
+
+def page_number() -> ElementNode:
+    """Insert current page number."""
+    return _node("page-number")
+
+
+# ---------------------------------------------------------------------------
+# Meta elements
+# ---------------------------------------------------------------------------
+
+def header(*children: Node | str | None) -> ElementNode:
+    """Page header (appears at the top of every page)."""
+    return _node("header", *children)
+
+def footer(*children: Node | str | None) -> ElementNode:
+    """Page footer (appears at the bottom of every page)."""
+    return _node("footer", *children)
+
+def space(size: int = 12) -> ElementNode:
+    """Vertical spacer (size in points)."""
+    return _node("space", size=size)

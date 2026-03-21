@@ -1,0 +1,141 @@
+// Meeting minutes template
+
+def attendee(name, role) {
+  p {
+    bold { name }
+    " — "
+    italic(color: gray) { role }
+  }
+}
+
+def action-item(owner, task, due) {
+  p {
+    badge(fill: #E74C3C, color: white) { "ACTION" }
+    " "
+    bold { owner }
+    ": "
+    task
+    " — "
+    italic(color: gray) { "Due: " due }
+  }
+}
+
+def decision(text) {
+  p {
+    badge(fill: #27AE60, color: white) { "DECIDED" }
+    " "
+    text
+  }
+}
+
+doc(font: Calibri, size: 11) {
+
+  page(margin: normal) {
+
+    banner(fill: #2C3E50, color: white) {
+      center {
+        bold(size: 16) { "Engineering Team — Weekly Sync" }
+        p { "March 18, 2026 | 10:00 AM — 11:00 AM | Room 4B / Zoom" }
+      }
+    }
+
+    space(size: 8)
+
+    // Attendees
+    bold(color: #2C3E50) { h3 { "Attendees" } }
+
+    cols(ratio: 1:1) {
+      col {
+        attendee(name: "Alex Rivera", role: "Engineering Manager")
+        attendee(name: "Priya Sharma", role: "Backend Lead")
+        attendee(name: "Tom Nielsen", role: "Frontend Lead")
+      }
+      col {
+        attendee(name: "Lisa Park", role: "QA Lead")
+        attendee(name: "James Wu", role: "DevOps")
+        attendee(name: "Maria Costa", role: "Product Manager")
+      }
+    }
+
+    line(stroke: lightgray)
+
+    // Agenda & Discussion
+    bold(color: #2C3E50) { h3 { "Discussion" } }
+
+    bold { p { "1. Sprint Review" } }
+    ul {
+      li { "Completed 18 of 22 story points (82% velocity)" }
+      li {
+        "Auth service migration is "
+        bold(color: green) { "on track" }
+        " for March 25 release"
+      }
+      li {
+        "Dashboard redesign slipped by 2 days — blocked on "
+        bold(color: red) { "API schema changes" }
+      }
+    }
+
+    bold { p { "2. Incident Postmortem — March 15 Outage" } }
+    callout(fill: #FDEDEC, stroke: #E74C3C) {
+      bold { "Root cause: " }
+      "Database connection pool exhaustion during peak traffic. "
+      "Auto-scaling rule had a misconfigured ceiling of 50 connections "
+      "instead of 200."
+    }
+    ul {
+      li { "MTTR: 23 minutes (within SLA)" }
+      li { "Impact: ~1,200 users saw 503 errors for 8 minutes" }
+      li { "Prevention: Connection pool monitoring alert added" }
+    }
+
+    bold { p { "3. Q2 Planning" } }
+    ul {
+      li { "Product shared draft roadmap — major themes: performance, self-serve analytics" }
+      li { "Engineering capacity: 4 sprints, minus 1 week for company offsite" }
+      li { "Need to finalize tech debt allocation (currently proposed at 20%)" }
+    }
+
+    line(stroke: lightgray)
+
+    // Decisions
+    bold(color: #2C3E50) { h3 { "Decisions" } }
+    decision(text: "Increase DB connection pool ceiling to 500 across all services")
+    decision(text: "Allocate 25% of Q2 capacity to tech debt (up from 20%)")
+    decision(text: "Postpone mobile app work to Q3 to focus on platform stability")
+
+    line(stroke: lightgray)
+
+    // Action items
+    bold(color: #2C3E50) { h3 { "Action Items" } }
+    action-item(
+      owner: "James",
+      task: "Update connection pool configs and deploy monitoring alerts",
+      due: "March 20"
+    )
+    action-item(
+      owner: "Priya",
+      task: "Write API schema migration plan for dashboard team",
+      due: "March 21"
+    )
+    action-item(
+      owner: "Maria",
+      task: "Finalize Q2 roadmap and share with stakeholders",
+      due: "March 25"
+    )
+    action-item(
+      owner: "Alex",
+      task: "Schedule Q2 kick-off and capacity planning session",
+      due: "March 22"
+    )
+
+    space(size: 16)
+
+    center {
+      italic(color: gray, size: 10) {
+        p { "Next meeting: March 25, 2026 — Same time, same place" }
+      }
+    }
+
+  }
+}

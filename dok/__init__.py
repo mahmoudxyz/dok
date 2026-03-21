@@ -11,6 +11,14 @@ from .builder import (
     h1, h2, h3, h4, p, quote, code,
     box, circle, diamond, chevron, callout, badge, banner, line,
     page_break, arrow,
+    ul, ol, li,
+    table, tr, td, th,
+    img, link, page_number,
+    header, footer, space,
 )
-from .nodes import Node, ElementNode, TextNode, ArrowNode
+from .nodes import Node, ElementNode, TextNode, ArrowNode, FunctionDefNode
 from .api import parse, to_docx, to_bytes
+from .errors import (
+    DokError, LexError, ParseError, ResolveError,
+    ValidationError, ValidationErrors,
+)

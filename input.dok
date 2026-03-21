@@ -1,17 +1,39 @@
+// ---------------------------------------------------------
+// Reusable components
+// ---------------------------------------------------------
+
+def uni-banner(title, subtitle) {
+  banner(fill: #1F3864, accent: gold) {
+    center {
+      bold(color: white, size: 16) { title }
+      color(value: lightgray, size: 12) { subtitle }
+    }
+  }
+}
+
+def info-row(label, value) {
+  p {
+    bold(color: gray) { label }
+    value
+  }
+}
+
+def signature-block(title) {
+  center {
+    line
+    color(value: gray) { title }
+  }
+}
+
+// ---------------------------------------------------------
+// Document
+// ---------------------------------------------------------
+
 doc(font: Calibri, size: 11) {
 
   page(margin: normal) {
 
-    banner(fill: #1F3864, accent: gold) {
-      center {
-        bold(color: white, size: 16) {
-          "Kafrelsheikh University"
-        }
-        color(value: lightgray, size: 12) {
-          "Faculty of Pharmacy"
-        }
-      }
-    }
+    uni-banner(title: "Kafrelsheikh University", subtitle: "Faculty of Pharmacy")
 
     center {
       bold(size: 18, color: #1F3864) {
@@ -46,11 +68,7 @@ doc(font: Calibri, size: 11) {
       cols(ratio: 1:1) {
 
         col {
-          p {
-            bold(color: gray) { "Academic Year: " }
-            "2024"
-          }
-
+          info-row(label: "Academic Year: ", value: "2024")
           p {
             bold(color: gray) { "Overall Grade: " }
             color(value: #C00000) { "Very Good (C+)" }
@@ -62,11 +80,7 @@ doc(font: Calibri, size: 11) {
             bold(color: gray) { "Cumulative GPA: " }
             color(value: #0070C0) { "3.25 / 4" }
           }
-
-          p {
-            bold(color: gray) { "Intake: " }
-            "May"
-          }
+          info-row(label: "Intake: ", value: "May")
         }
       }
     }
@@ -90,24 +104,15 @@ doc(font: Calibri, size: 11) {
     cols(ratio: 1:1:1) {
 
       col {
-        center {
-          line
-          color(value: gray) { "Dean of the Faculty" }
-        }
+        signature-block(title: "Dean of the Faculty")
       }
 
       col {
-        center {
-          line
-          color(value: gray) { "Director of Student Affairs" }
-        }
+        signature-block(title: "Director of Student Affairs")
       }
 
       col {
-        center {
-          line
-          color(value: gray) { "Authorized Officer" }
-        }
+        signature-block(title: "Authorized Officer")
       }
     }
 

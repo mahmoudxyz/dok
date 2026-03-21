@@ -1,0 +1,133 @@
+// Award / completion certificate
+
+def ornamental-line() {
+  center {
+    color(value: #C9A84C) {
+      bold { p { "* * * * * * * * * * * * * * * * * * * * *" } }
+    }
+  }
+}
+
+doc(font: Georgia, size: 12) {
+
+  page(margin: wide) {
+
+    space(size: 36)
+
+    ornamental-line
+
+    space(size: 24)
+
+    center {
+      color(value: #1F3864, size: 14) {
+        p { "THE BOARD OF DIRECTORS" }
+      }
+      bold(size: 28, color: #1F3864) {
+        p { "GLOBAL TECH INSTITUTE" }
+      }
+      italic(color: gray) {
+        p { "Excellence in Technology Education Since 1995" }
+      }
+    }
+
+    space(size: 24)
+
+    center {
+      italic(size: 14, color: gray) { p { "hereby certifies that" } }
+    }
+
+    space(size: 12)
+
+    center {
+      box(fill: #F8F6F0, stroke: #C9A84C, rounded: true) {
+        center {
+          bold(size: 24, color: #1F3864) { "Dr. Ahmad Hassan Al-Rashidi" }
+        }
+      }
+    }
+
+    space(size: 12)
+
+    center {
+      italic(size: 14, color: gray) {
+        p { "has successfully completed the requirements for" }
+      }
+    }
+
+    space(size: 8)
+
+    center {
+      bold(size: 18, color: #1F3864) {
+        p { "Advanced Certification in Cloud Architecture" }
+      }
+      p { "with specialization in " bold { "Distributed Systems Design" } }
+    }
+
+    space(size: 8)
+
+    center {
+      p {
+        "Awarded with "
+        bold(color: #C9A84C) { "Distinction" }
+        " on this day, the 15th of December, 2024"
+      }
+    }
+
+    space(size: 12)
+
+    // Credential details
+    box(fill: #FAFAFA, rounded: true) {
+      cols(ratio: 1:1:1) {
+        col {
+          center {
+            bold(color: gray, size: 9) { p { "CREDENTIAL ID" } }
+            p { "GTI-2024-CA-00847" }
+          }
+        }
+        col {
+          center {
+            bold(color: gray, size: 9) { p { "HOURS COMPLETED" } }
+            p { "240 Hours" }
+          }
+        }
+        col {
+          center {
+            bold(color: gray, size: 9) { p { "VALID THROUGH" } }
+            p { "December 2027" }
+          }
+        }
+      }
+    }
+
+    space(size: 24)
+
+    // Signatures
+    cols(ratio: 1:1) {
+      col {
+        center {
+          line
+          bold { p { "Dr. Elena Vasquez" } }
+          italic(color: gray) { p { "President" } }
+        }
+      }
+      col {
+        center {
+          line
+          bold { p { "Prof. Kenji Tanaka" } }
+          italic(color: gray) { p { "Director of Certification" } }
+        }
+      }
+    }
+
+    space(size: 24)
+
+    ornamental-line
+
+    space(size: 8)
+
+    center {
+      badge(fill: #1F3864, color: white) { "Verified Digital Certificate" }
+    }
+
+  }
+}

@@ -5,13 +5,13 @@ The node tree. This is the single data model that:
   - the parser produces
   - the builder API produces
   - the converter consumes
-
-Nothing else. No logic, no DOCX knowledge, no parsing.
 """
 
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
+
+from .errors import SourceLoc
 
 
 # ---------------------------------------------------------------------------
@@ -20,6 +20,7 @@ from typing import Any
 
 class Node:
     """Base class for all nodes in a Dok document tree."""
+    loc: SourceLoc | None = None
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
@@ -31,28 +32,17 @@ class Node:
 
 @dataclass
 class ElementNode(Node):
-    """
-    A named element with optional props and children.
-
-    Covers every Dok construct: doc, page, center, bold, box, h1, p, ...
-
-    Examples in string syntax:
-        bold { "hello" }
-        box(fill: navy, rounded) { p { "text" } }
-        h1 { "Title" }
-    """
     name:     str
     props:    dict[str, Any]  = field(default_factory=dict)
     children: list[Node]      = field(default_factory=list)
+    loc:      SourceLoc | None = None
 
     def __repr__(self) -> str:
         return f"ElementNode({self.name!r}, props={self.props}, children={len(self.children)})"
 
-    # Convenience: get a prop with a default
     def prop(self, key: str, default: Any = None) -> Any:
         return self.props.get(key, default)
 
-    # Convenience: check a boolean flag
     def flag(self, key: str) -> bool:
         v = self.props.get(key, False)
         return v is True or v == "true"
@@ -60,13 +50,8 @@ class ElementNode(Node):
 
 @dataclass
 class TextNode(Node):
-    """
-    A bare text node. Always a leaf. Always inside an ElementNode.
-
-    Example in string syntax:
-        "hello world"
-    """
     text: str
+    loc:  SourceLoc | None = None
 
     def __repr__(self) -> str:
         return f"TextNode({self.text!r})"
@@ -74,23 +59,36 @@ class TextNode(Node):
 
 @dataclass
 class ArrowNode(Node):
-    """
-    A connector arrow between two siblings inside a row { }.
-
-    Example in string syntax:
-        box { "A" }  ->  box { "B" }
-        box { "A" }  -> "label" ->  box { "B" }
-    """
     label: str | None = None
+    loc:   SourceLoc | None = None
 
     def __repr__(self) -> str:
         return f"ArrowNode(label={self.label!r})"
 
 
+@dataclass
+class FunctionDefNode(Node):
+    name:   str
+    params: list[str]
+    body:   list[Node]
+    loc:    SourceLoc | None = None
+
+    def __repr__(self) -> str:
+        return f"FunctionDefNode({self.name!r}, params={self.params})"
+
+
+@dataclass
+class ImportNode(Node):
+    """import "path.dok" directive — resolved before function expansion."""
+    path: str
+    loc:  SourceLoc | None = None
+
+    def __repr__(self) -> str:
+        return f"ImportNode({self.path!r})"
+
+
 # ---------------------------------------------------------------------------
 # Layer classification
-# These are the five layers from the architecture.
-# The converter uses these to decide what context to update vs. what to emit.
 # ---------------------------------------------------------------------------
 
 # Layer 1 — document defaults
@@ -99,25 +97,30 @@ DOC_NODES = {"doc"}
 # Layer 2 — physical space
 PAGE_NODES = {"page"}
 
-# Layer 3 — layout / arrangement (update ParaCtx, do not emit directly)
+# Layer 3 — layout / arrangement
 LAYOUT_NODES = {"center", "right", "left", "justify", "rtl", "ltr",
                 "indent", "row", "cols", "col", "float"}
 
-# Layer 4 — run style (update RunCtx, do not emit directly)
+# Layer 4 — run style
 STYLE_NODES  = {"bold", "italic", "underline", "strike", "sup", "sub",
                 "color", "size", "font", "highlight"}
 
-# Layer 5 — content atoms (consume context and emit DOCX)
+# Layer 5 — content atoms
 BLOCK_NODES  = {"h1", "h2", "h3", "h4", "p", "quote", "code"}
 SHAPE_NODES  = {"box", "circle", "diamond", "chevron", "callout",
                 "badge", "banner", "line"}
-SPECIAL_NODES = {"---"}   # page break
+LIST_NODES   = {"ul", "ol", "li"}
+TABLE_NODES  = {"table", "tr", "td", "th"}
+INLINE_NODES = {"link", "img", "page-number"}
+META_NODES   = {"header", "footer", "space"}
+SPECIAL_NODES = {"---"}
 
-CONTENT_NODES = BLOCK_NODES | SHAPE_NODES | SPECIAL_NODES
+CONTENT_NODES = BLOCK_NODES | SHAPE_NODES | SPECIAL_NODES | LIST_NODES | TABLE_NODES | INLINE_NODES | META_NODES
+
+ALL_KNOWN_NODES = DOC_NODES | PAGE_NODES | LAYOUT_NODES | STYLE_NODES | CONTENT_NODES
 
 
 def node_layer(name: str) -> str:
-    """Return which layer a node name belongs to."""
     if name in DOC_NODES:    return "doc"
     if name in PAGE_NODES:   return "page"
     if name in LAYOUT_NODES: return "layout"
@@ -127,16 +130,11 @@ def node_layer(name: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# DOCX preset geometry names — used by the converter
+# DOCX preset geometry names — used by the converter for drawing shapes
 # ---------------------------------------------------------------------------
 
 SHAPE_PRESETS: dict[str, str] = {
-    "box":      "rect",
     "circle":   "ellipse",
     "diamond":  "diamond",
     "chevron":  "chevron",
-    "callout":  "wedgeRectCallout",
-    "badge":    "rect",    # small inline rect
-    "banner":   "rect",    # full-width rect
-    "line":     "line",
 }

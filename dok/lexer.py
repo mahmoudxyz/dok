@@ -25,6 +25,8 @@ import re
 from dataclasses import dataclass
 from typing import Iterator
 
+from .errors import LexError, SourceLoc
+
 
 # ---------------------------------------------------------------------------
 # Token
@@ -45,19 +47,12 @@ class Token:
     line:  int    # 1-based, for error messages
     col:   int    # 1-based
 
+    @property
+    def loc(self) -> SourceLoc:
+        return SourceLoc(self.line, self.col)
+
     def __repr__(self) -> str:
         return f"Token({self.type}, {self.value!r}, line={self.line})"
-
-
-# ---------------------------------------------------------------------------
-# LexError
-# ---------------------------------------------------------------------------
-
-class LexError(Exception):
-    def __init__(self, message: str, line: int, col: int) -> None:
-        super().__init__(f"Line {line}, col {col}: {message}")
-        self.line = line
-        self.col  = col
 
 
 # ---------------------------------------------------------------------------
@@ -88,11 +83,12 @@ class Lexer:
         ("RBRACE",    r"\}"),
         ("COLON",     r":"),
         ("COMMA",     r","),
-        ("NAME",      r"[a-zA-Z][a-zA-Z0-9_-]*"),
+        ("NAME",      r"[a-zA-Z\u0600-\u06FF\u0750-\u077F\u0590-\u05FF\u00C0-\u024F\u1E00-\u1EFF][a-zA-Z0-9_\u0600-\u06FF\u0750-\u077F\u0590-\u05FF\u00C0-\u024F\u1E00-\u1EFF-]*"),
     ]
 
     _MASTER = re.compile(
-        "|".join(f"(?P<{name}>{pat})" for name, pat in _PATTERNS)
+        "|".join(f"(?P<{name}>{pat})" for name, pat in _PATTERNS),
+        re.UNICODE,
     )
 
     def __init__(self, source: str) -> None:
@@ -150,7 +146,9 @@ class Lexer:
 
             if not m:
                 raise LexError(
-                    f"Unexpected character {source[pos]!r}", line, col
+                    f"Unexpected character {source[pos]!r}",
+                    loc=SourceLoc(line, col),
+                    hint="Check for stray characters or unsupported symbols.",
                 )
 
             tok_type  = m.lastgroup

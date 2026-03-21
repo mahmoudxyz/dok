@@ -1,0 +1,290 @@
+// Bilingual English/Arabic report — mixed LTR and RTL
+
+def section-en(title) {
+  bold(size: 13, color: #1F3864) { h2 { title } }
+  line(stroke: #CCCCCC)
+  space(size: 6)
+}
+
+def section-ar(title) {
+  rtl {
+    bold(size: 13, color: #1F3864) { h2 { title } }
+    line(stroke: #CCCCCC)
+    space(size: 6)
+  }
+}
+
+doc(font: Calibri, size: 11) {
+
+  header {
+    cols(ratio: 1:1) {
+      col {
+        italic(color: gray, size: 9) { p { "Annual Partnership Report 2024" } }
+      }
+      col {
+        rtl {
+          italic(color: gray, size: 9) { p { "تقرير الشراكة السنوي ٢٠٢٤" } }
+        }
+      }
+    }
+  }
+
+  footer {
+    center {
+      p {
+        color(value: gray, size: 9) { "Page / صفحة " }
+        page-number
+      }
+    }
+  }
+
+  page(margin: normal) {
+
+    // Bilingual banner
+    banner(fill: #1F3864, color: white) {
+      cols(ratio: 1:1) {
+        col {
+          bold(size: 18) { p { "Global Education Initiative" } }
+          p { "Annual Partnership Report" }
+        }
+        col {
+          rtl {
+            bold(size: 18) { p { "مبادرة التعليم العالمية" } }
+            p { "تقرير الشراكة السنوي" }
+          }
+        }
+      }
+    }
+
+    space(size: 12)
+
+    // English overview
+    section-en(title: "Executive Summary")
+
+    p {
+      "The Global Education Initiative completed its third year of operation "
+      "with "
+      bold(color: green) { "significant milestones" }
+      " across all partner regions. This report presents key outcomes "
+      "in both English and Arabic for our international stakeholders."
+    }
+
+    // Arabic overview
+    section-ar(title: "الملخص التنفيذي")
+
+    rtl {
+      p {
+        "أتمت مبادرة التعليم العالمية عامها الثالث من العمل محققة "
+        bold(color: green) { "إنجازات ملموسة" }
+        " في جميع المناطق الشريكة. يقدم هذا التقرير النتائج الرئيسية "
+        "باللغتين العربية والإنجليزية لأصحاب المصلحة الدوليين."
+      }
+    }
+
+    space(size: 8)
+
+    // Key metrics — bilingual table
+    section-en(title: "Key Metrics / المؤشرات الرئيسية")
+
+    table(border: true, striped: true) {
+      tr {
+        th { "Metric" }
+        th { "المؤشر" }
+        th { "2023" }
+        th { "2024" }
+        th { "Change" }
+      }
+      tr {
+        td { "Partner Universities" }
+        td { rtl { "الجامعات الشريكة" } }
+        td { "12" }
+        td { bold { "18" } }
+        td { bold(color: green) { "+50%" } }
+      }
+      tr {
+        td { "Students Enrolled" }
+        td { rtl { "الطلاب المسجلون" } }
+        td { "3,400" }
+        td { bold { "5,200" } }
+        td { bold(color: green) { "+53%" } }
+      }
+      tr {
+        td { "Courses Offered" }
+        td { rtl { "المقررات المتاحة" } }
+        td { "45" }
+        td { bold { "72" } }
+        td { bold(color: green) { "+60%" } }
+      }
+      tr {
+        td { "Completion Rate" }
+        td { rtl { "معدل الإكمال" } }
+        td { "68%" }
+        td { bold { "78%" } }
+        td { bold(color: green) { "+10pp" } }
+      }
+      tr {
+        td { "Research Papers" }
+        td { rtl { "الأبحاث المنشورة" } }
+        td { "23" }
+        td { bold { "41" } }
+        td { bold(color: green) { "+78%" } }
+      }
+    }
+
+    space(size: 12)
+
+    // Side-by-side highlights
+    section-en(title: "Regional Highlights / أبرز الإنجازات الإقليمية")
+
+    cols(ratio: 1:1) {
+      col {
+        bold(color: #1F3864) { p { "Middle East & North Africa" } }
+
+        ul {
+          li {
+            "Cairo University launched joint "
+            bold { "AI research lab" }
+          }
+          li { "3 new partnerships in Saudi Arabia and UAE" }
+          li {
+            "Student satisfaction score: "
+            bold(color: green) { "4.6/5.0" }
+          }
+        }
+
+        callout(fill: #E8F4FD, stroke: #2196F3) {
+          bold { "Highlight: " }
+          "First cohort of 120 students graduated from the "
+          "joint Computer Science program in Cairo."
+        }
+      }
+
+      col {
+        rtl {
+          bold(color: #1F3864) { p { "الشرق الأوسط وشمال أفريقيا" } }
+
+          ul {
+            li {
+              "أطلقت جامعة القاهرة "
+              bold { "مختبر أبحاث الذكاء الاصطناعي" }
+              " المشترك"
+            }
+            li { "٣ شراكات جديدة في السعودية والإمارات" }
+            li {
+              "معدل رضا الطلاب: "
+              bold(color: green) { "٤٫٦ / ٥٫٠" }
+            }
+          }
+
+          callout(fill: #E8F4FD, stroke: #2196F3) {
+            bold { "إنجاز بارز: " }
+            "تخرج أول دفعة من ١٢٠ طالبًا من برنامج علوم "
+            "الحاسب المشترك في القاهرة."
+          }
+        }
+      }
+    }
+
+    space(size: 8)
+
+    // Challenges section — bilingual
+    section-en(title: "Challenges / التحديات")
+
+    cols(ratio: 1:1) {
+      col {
+        ol {
+          li {
+            bold { "Language barriers: " }
+            "Course materials need more Arabic localization"
+          }
+          li {
+            bold { "Infrastructure: " }
+            "Unreliable internet in some partner locations"
+          }
+          li {
+            bold { "Faculty exchange: " }
+            "Visa processing delays affected 30% of planned visits"
+          }
+        }
+      }
+
+      col {
+        rtl {
+          ol {
+            li {
+              bold { "حواجز اللغة: " }
+              "المواد الدراسية تحتاج إلى مزيد من التعريب"
+            }
+            li {
+              bold { "البنية التحتية: " }
+              "ضعف الاتصال بالإنترنت في بعض المواقع الشريكة"
+            }
+            li {
+              bold { "تبادل أعضاء هيئة التدريس: " }
+              "تأخيرات التأشيرات أثرت على ٣٠٪ من الزيارات المخططة"
+            }
+          }
+        }
+      }
+    }
+
+    space(size: 12)
+
+    // Next steps
+    section-en(title: "2025 Roadmap / خارطة طريق ٢٠٢٥")
+
+    table(border: true) {
+      tr {
+        th { "Quarter" }
+        th { "English" }
+        th { "العربية" }
+      }
+      tr {
+        td { bold { "Q1" } }
+        td { "Launch Arabic-first course platform" }
+        td { rtl { "إطلاق منصة المقررات العربية" } }
+      }
+      tr {
+        td { bold { "Q2" } }
+        td { "Open Riyadh and Dubai satellite offices" }
+        td { rtl { "افتتاح مكاتب الرياض ودبي" } }
+      }
+      tr {
+        td { bold { "Q3" } }
+        td { "Host first bilingual research conference" }
+        td { rtl { "استضافة أول مؤتمر بحثي ثنائي اللغة" } }
+      }
+      tr {
+        td { bold { "Q4" } }
+        td { "Expand to 25 partner universities" }
+        td { rtl { "التوسع إلى ٢٥ جامعة شريكة" } }
+      }
+    }
+
+    space(size: 24)
+
+    // Bilingual sign-off
+    line(stroke: #1F3864)
+    space(size: 8)
+
+    cols(ratio: 1:1) {
+      col {
+        p {
+          bold(color: gray, size: 9) { "PREPARED BY" }
+        }
+        bold { p { "Dr. James Mitchell" } }
+        italic(color: gray) { p { "Program Director" } }
+      }
+      col {
+        rtl {
+          p {
+            bold(color: gray, size: 9) { "إعداد" }
+          }
+          bold { p { "د. أحمد محمود الفارسي" } }
+          italic(color: gray) { p { "المدير الإقليمي — الشرق الأوسط" } }
+        }
+      }
+    }
+
+  }
+}

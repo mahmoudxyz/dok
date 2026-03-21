@@ -1,0 +1,117 @@
+// Professional resume / CV
+
+def section-header(title) {
+  space(size: 8)
+  bold(size: 12, color: #2C3E50) { h3 { title } }
+  line(stroke: #2C3E50)
+  space(size: 4)
+}
+
+def job(company, role, dates) {
+  p {
+    bold { role }
+    " — "
+    italic { company }
+  }
+  right { italic(color: gray, size: 10) { p { dates } } }
+}
+
+def skill-tag(name) {
+  badge(fill: #E8F4FD, color: #2C3E50) { name }
+}
+
+doc(font: Calibri, size: 11) {
+
+  page(margin: narrow) {
+
+    // Name and contact
+    center {
+      bold(size: 24, color: #2C3E50) { p { "Sarah Chen" } }
+      color(value: gray) {
+        p { "Senior Software Engineer" }
+      }
+      p {
+        "sarah.chen@email.com"
+        " | "
+        "github.com/sarahchen"
+        " | "
+        "San Francisco, CA"
+      }
+    }
+
+    section-header(title: "Experience")
+
+    job(
+      company: "Stripe",
+      role: "Senior Software Engineer",
+      dates: "2022 — Present"
+    )
+    ul {
+      li {
+        "Led redesign of payment retry logic, recovering "
+        bold(color: green) { "$12M" }
+        " annually in previously failed transactions"
+      }
+      li { "Built real-time fraud detection pipeline processing 50K events/sec" }
+      li { "Mentored 4 junior engineers; 2 promoted to mid-level within a year" }
+    }
+
+    space(size: 8)
+
+    job(
+      company: "Datadog",
+      role: "Software Engineer",
+      dates: "2019 — 2022"
+    )
+    ul {
+      li { "Designed distributed tracing ingestion system handling 1B+ spans/day" }
+      li {
+        "Reduced query latency by "
+        bold(color: green) { "73%" }
+        " through index optimization and caching"
+      }
+      li { "Contributed to open-source OpenTelemetry Go SDK" }
+    }
+
+    space(size: 8)
+
+    job(
+      company: "Bloomberg",
+      role: "Junior Software Engineer",
+      dates: "2017 — 2019"
+    )
+    ul {
+      li { "Built internal tool for financial data validation, adopted by 200+ analysts" }
+      li { "Maintained low-latency market data feed handlers in C++" }
+    }
+
+    section-header(title: "Education")
+
+    p {
+      bold { "B.S. Computer Science" }
+      " — Carnegie Mellon University, 2017"
+    }
+    italic(color: gray) { p { "Dean's List, Teaching Assistant for Distributed Systems" } }
+
+    section-header(title: "Skills")
+
+    p {
+      skill-tag(name: "Go")
+      " "
+      skill-tag(name: "Python")
+      " "
+      skill-tag(name: "Rust")
+      " "
+      skill-tag(name: "PostgreSQL")
+      " "
+      skill-tag(name: "Kafka")
+      " "
+      skill-tag(name: "Kubernetes")
+      " "
+      skill-tag(name: "gRPC")
+      " "
+      skill-tag(name: "AWS")
+    }
+
+  }
+}

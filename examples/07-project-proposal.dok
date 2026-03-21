@@ -1,0 +1,233 @@
+// Project proposal / technical spec
+
+def status(label, color_val) {
+  badge(fill: color_val, color: white) { label }
+}
+
+def metric-box(label, value, detail) {
+  box(fill: #F8F9FA, rounded: true) {
+    center {
+      bold(color: gray, size: 9) { p { label } }
+      bold(size: 18, color: #2C3E50) { p { value } }
+      italic(color: gray, size: 9) { p { detail } }
+    }
+  }
+}
+
+doc(font: Calibri, size: 11) {
+
+  header {
+    p {
+      bold(color: gray, size: 9) { "Project Proposal" }
+      "                                                              "
+      italic(color: gray, size: 9) { "DRAFT — v2.1" }
+    }
+  }
+
+  footer {
+    center {
+      p {
+        italic(color: gray, size: 9) { "Confidential — " }
+        color(value: gray, size: 9) { "Page " }
+        page-number
+      }
+    }
+  }
+
+  page(margin: normal) {
+
+    banner(fill: #2C3E50, color: white, accent: #3498DB) {
+      center {
+        bold(size: 22) { "Platform Modernization" }
+        p { "Technical Proposal — Q2 2026" }
+      }
+    }
+
+    space(size: 8)
+
+    // Overview
+    cols(ratio: 3:1) {
+      col {
+        h2(color: #2C3E50) { "Overview" }
+        p {
+          "This proposal outlines the migration of our monolithic API server "
+          "to a microservices architecture. The project addresses growing "
+          "scalability concerns and aims to reduce deployment time from "
+          bold { "45 minutes" }
+          " to under "
+          bold(color: green) { "5 minutes" }
+          " per service."
+        }
+      }
+      col {
+        space(size: 24)
+        p {
+          bold(color: gray, size: 9) { "Status: " }
+          status(label: "PROPOSED", color_val: #F39C12)
+        }
+        p {
+          bold(color: gray, size: 9) { "Owner: " }
+          "Platform Team"
+        }
+        p {
+          bold(color: gray, size: 9) { "Sponsor: " }
+          "VP Engineering"
+        }
+      }
+    }
+
+    // Key metrics
+    space(size: 8)
+    row {
+      metric-box(label: "CURRENT DEPLOY", value: "45 min", detail: "full monolith")
+      metric-box(label: "TARGET DEPLOY", value: "<5 min", detail: "per service")
+      metric-box(label: "TIMELINE", value: "16 weeks", detail: "4 phases")
+      metric-box(label: "TEAM SIZE", value: "6 engineers", detail: "2 from each pod")
+    }
+
+    space(size: 12)
+
+    // Problem statement
+    h2(color: #2C3E50) { "Problem Statement" }
+
+    callout(fill: #FDEDEC, stroke: #E74C3C) {
+      bold { "Current pain points:" }
+    }
+
+    ol {
+      li {
+        bold { "Deployment risk: " }
+        "Every deploy ships the entire application. A bug in billing "
+        "takes down search, notifications, and user management."
+      }
+      li {
+        bold { "Scaling bottleneck: " }
+        "We can only scale the entire monolith. The search service needs "
+        "10x the compute of user management, but both scale together."
+      }
+      li {
+        bold { "Developer velocity: " }
+        "Teams wait in a deployment queue. Average wait time is 3 hours. "
+        "Some teams deploy only twice per week."
+      }
+      li {
+        bold { "Testing overhead: " }
+        "Full test suite takes 28 minutes. Engineers skip tests locally "
+        "and rely on CI, slowing the feedback loop."
+      }
+    }
+
+    // Proposed solution
+    h2(color: #2C3E50) { "Proposed Architecture" }
+
+    p { "Extract the following bounded contexts into independent services:" }
+
+    table(border: true, striped: true) {
+      tr {
+        th { "Service" }
+        th { "Owner" }
+        th { "Priority" }
+        th { "Complexity" }
+      }
+      tr {
+        td { "Auth & Identity" }
+        td { "Platform" }
+        td { status(label: "P0", color_val: #E74C3C) }
+        td { "Medium" }
+      }
+      tr {
+        td { "Search" }
+        td { "Discovery" }
+        td { status(label: "P0", color_val: #E74C3C) }
+        td { "High" }
+      }
+      tr {
+        td { "Billing" }
+        td { "Revenue" }
+        td { status(label: "P1", color_val: #F39C12) }
+        td { "High" }
+      }
+      tr {
+        td { "Notifications" }
+        td { "Growth" }
+        td { status(label: "P1", color_val: #F39C12) }
+        td { "Low" }
+      }
+      tr {
+        td { "Analytics" }
+        td { "Data" }
+        td { status(label: "P2", color_val: #3498DB) }
+        td { "Medium" }
+      }
+    }
+
+    // Timeline
+    h2(color: #2C3E50) { "Timeline" }
+
+    table(border: true) {
+      tr {
+        th { "Phase" }
+        th { "Duration" }
+        th { "Deliverable" }
+      }
+      tr {
+        td { bold { "1. Foundation" } }
+        td { "Weeks 1–4" }
+        td { "Service mesh, CI/CD pipeline, shared libraries" }
+      }
+      tr {
+        td { bold { "2. Auth extraction" } }
+        td { "Weeks 5–8" }
+        td { "Auth service live, monolith delegates auth" }
+      }
+      tr {
+        td { bold { "3. Search extraction" } }
+        td { "Weeks 9–12" }
+        td { "Search service live, independent scaling" }
+      }
+      tr {
+        td { bold { "4. Billing + cleanup" } }
+        td { "Weeks 13–16" }
+        td { "Billing service live, monitoring, documentation" }
+      }
+    }
+
+    // Risks
+    space(size: 8)
+    h2(color: #2C3E50) { "Risks & Mitigations" }
+
+    callout(fill: #FFF3CD, stroke: #FFC107) {
+      bold { "Data consistency: " }
+      "Eventual consistency between services may cause brief inconsistencies. "
+      "Mitigation: Use the Saga pattern for cross-service transactions and "
+      "implement idempotent operations."
+    }
+
+    space(size: 4)
+
+    callout(fill: #FFF3CD, stroke: #FFC107) {
+      bold { "Team bandwidth: " }
+      "Pulling engineers from product work may slow feature delivery. "
+      "Mitigation: Phase the work to limit concurrent disruption to 2 engineers per pod."
+    }
+
+    // Sign-off
+    space(size: 24)
+    line(stroke: #2C3E50)
+    space(size: 4)
+
+    cols(ratio: 1:1) {
+      col {
+        bold(color: gray, size: 9) { p { "PREPARED BY" } }
+        bold { p { "Alex Rivera" } }
+        italic(color: gray) { p { "Staff Engineer, Platform" } }
+      }
+      col {
+        bold(color: gray, size: 9) { p { "APPROVED BY" } }
+        bold { p { "________________" } }
+        italic(color: gray) { p { "VP Engineering" } }
+      }
+    }
+
+  }
+}

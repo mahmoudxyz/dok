@@ -12,42 +12,28 @@ import io
 import zipfile
 from pathlib import Path
 
-from .converter import (
+from .constants import (
+    inch_to_emu, inch_to_twip,
+    MARGIN_PRESETS, PAPER_SIZES, content_width_twip,
+    HYPERLINK_COLOR, DEFAULT_BORDER_COLOR,
+)
+from .docx_packaging import (
+    W_NS as _W_NS, R_NS as _R_NS, A_NS as _A_NS,
+    WPS_URI as _WPS_URI, PIC_URI as _PIC_URI,
+    DOCUMENT_NS as _NS, PACKAGE_RELS as _RELS, SETTINGS_XML as _SETTINGS,
+    build_numbering_xml, build_doc_rels, build_content_types,
+)
+from .docx_styles import build_styles_xml
+from .models import (
     DocxModel, ParagraphModel, RunModel, ShapeModel,
     RowModel, TableModel, TableCellModel,
     PageBreakModel, SectionModel,
-    LineModel, BoxModel, BannerModel, BadgeModel,
+    LineModel, BoxModel,
     DataTableModel, DataTableRowModel, DataTableCellModel,
     ImageModel, SpacerModel, HeaderModel, FooterModel,
-    _SPACING_PRESETS,
 )
+from .writer_utils import group_runs_by_hyperlink
 from .xml_writer import XmlWriter
-
-
-# ---------------------------------------------------------------------------
-# Units
-# ---------------------------------------------------------------------------
-
-def inch_to_emu(i: float) -> int:  return int(i * 914400)
-def inch_to_twip(i: float)-> int:  return int(i * 1440)
-
-MARGIN_PRESETS = {
-    "normal": {"top": 1440, "right": 1440, "bottom": 1440, "left": 1440},
-    "narrow": {"top":  720, "right":  720, "bottom":  720, "left":  720},
-    "wide":   {"top": 1440, "right": 2880, "bottom": 1440, "left": 2880},
-    "none":   {"top":    0, "right":    0, "bottom":    0, "left":    0},
-}
-
-PAPER_SIZES = {
-    "a4":     (11906, 16838),
-    "letter": (12240, 15840),
-    "a3":     (16838, 23811),
-}
-
-def content_width_twip(paper: str = "a4", margin: str = "normal") -> int:
-    pw, _ = PAPER_SIZES.get(paper, PAPER_SIZES["a4"])
-    m = MARGIN_PRESETS.get(margin, MARGIN_PRESETS["normal"])
-    return pw - m["left"] - m["right"]
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +71,7 @@ class DocxWriter:
         # Build optional parts
         header_xml = self._build_header_xml() if self._model.header else None
         footer_xml = self._build_footer_xml() if self._model.footer else None
-        numbering_xml = self._build_numbering_xml() if self._model.has_lists else None
+        numbering_xml = build_numbering_xml() if self._model.has_lists else None
 
         # Assign rel IDs for header/footer/numbering
         header_rel_id = footer_rel_id = numbering_rel_id = None
@@ -97,8 +83,14 @@ class DocxWriter:
             footer_rel_id = self._next_rel_id()
 
         # Build dynamic rels and content types
-        doc_rels_xml    = self._build_doc_rels(header_rel_id, footer_rel_id, numbering_rel_id)
-        content_types   = self._build_content_types(header_xml, footer_xml, numbering_xml)
+        doc_rels_xml    = build_doc_rels(
+            self._image_entries, self._hyperlink_rels,
+            header_rel_id, footer_rel_id, numbering_rel_id)
+        content_types   = build_content_types(
+            self._image_entries,
+            has_header=header_xml is not None,
+            has_footer=footer_xml is not None,
+            has_numbering=numbering_xml is not None)
 
         # If we have header/footer, rebuild doc xml with correct rel IDs in sectPr
         if header_rel_id or footer_rel_id:
@@ -156,26 +148,45 @@ class DocxWriter:
         w.close("w:document")
         return w.getvalue()
 
+    _DISPATCH: dict[type, str] = {
+        ParagraphModel: "_write_paragraph",
+        LineModel:      "_write_line",
+        BoxModel:       "_write_box",
+        DataTableModel: "_write_data_table",
+        ImageModel:     "_write_image",
+        SpacerModel:    "_write_spacer",
+        ShapeModel:     "_write_shape",
+        RowModel:       "_write_row",
+        TableModel:     "_write_table",
+        PageBreakModel: "_write_page_break",
+    }
+
     def _write_item(self, w: XmlWriter, item) -> None:
-        if isinstance(item, ParagraphModel):   self._write_paragraph(w, item)
-        elif isinstance(item, LineModel):      self._write_line(w, item)
-        elif isinstance(item, BoxModel):       self._write_box(w, item)
-        elif isinstance(item, BannerModel):    self._write_banner(w, item)
-        elif isinstance(item, BadgeModel):     self._write_badge(w, item)
-        elif isinstance(item, DataTableModel): self._write_data_table(w, item)
-        elif isinstance(item, ImageModel):     self._write_image(w, item)
-        elif isinstance(item, SpacerModel):    self._write_spacer(w, item)
-        elif isinstance(item, ShapeModel):     self._write_shape(w, item)
-        elif isinstance(item, RowModel):       self._write_row(w, item)
-        elif isinstance(item, TableModel):     self._write_table(w, item)
-        elif isinstance(item, PageBreakModel): self._write_page_break(w)
+        handler = self._DISPATCH.get(type(item))
+        if handler:
+            getattr(self, handler)(w, item)
 
     # ------------------------------------------------------------------
     # Paragraph
     # ------------------------------------------------------------------
 
     def _write_paragraph(self, w: XmlWriter, para: ParagraphModel) -> None:
+        # SourceCode with newlines: split into one <w:p> per line
+        if para.style == "SourceCode" and any("\n" in r.text for r in para.runs):
+            self._write_code_lines(w, para)
+            return
+
+        self._write_single_paragraph(w, para)
+
+    def _write_single_paragraph(self, w: XmlWriter, para: ParagraphModel) -> None:
         w.open("w:p")
+        self._write_para_props(w, para)
+        self._write_runs_with_hyperlinks(w, para.runs)
+        w.close("w:p")
+
+    def _write_para_props(self, w: XmlWriter, para: ParagraphModel,
+                          space_before: int | None = None,
+                          space_after: int | None = None) -> None:
         w.open("w:pPr")
 
         w.tag("w:pStyle", {"w:val": para.style})
@@ -191,11 +202,14 @@ class DocxWriter:
         if para.indent_twips > 0:
             w.tag("w:ind", {"w:left": str(para.indent_twips)})
 
-        spacing: dict = {}
-        if para.space_before: spacing["w:before"] = str(para.space_before)
-        if para.space_after:  spacing["w:after"]  = str(para.space_after)
-        if spacing:
-            w.tag("w:spacing", spacing)
+        # Always write spacing to override style defaults precisely
+        sb = space_before if space_before is not None else para.space_before
+        sa = space_after if space_after is not None else para.space_after
+        spacing: dict = {"w:before": str(sb), "w:after": str(sa)}
+        if para.line_spacing:
+            spacing["w:line"] = str(para.line_spacing)
+            spacing["w:lineRule"] = "auto"
+        w.tag("w:spacing", spacing)
 
         if para.shading:
             w.tag("w:shd", {"w:val": "clear", "w:color": "auto", "w:fill": para.shading})
@@ -222,27 +236,41 @@ class DocxWriter:
 
         w.close("w:pPr")
 
-        # Group runs by hyperlink URL for proper wrapping
-        self._write_runs_with_hyperlinks(w, para.runs)
+    def _write_code_lines(self, w: XmlWriter, para: ParagraphModel) -> None:
+        """Split a SourceCode paragraph with newlines into one <w:p> per line."""
+        # Concatenate all run text
+        full_text = "".join(r.text for r in para.runs)
+        lines = full_text.split("\n")
+        # Take run formatting from first run
+        template_run = para.runs[0] if para.runs else RunModel(text="")
 
-        w.close("w:p")
+        for i, line_text in enumerate(lines):
+            w.open("w:p")
+            sb = para.space_before if i == 0 else 0
+            sa = para.space_after if i == len(lines) - 1 else 0
+            self._write_para_props(w, para, space_before=sb, space_after=sa)
+            text = line_text if line_text else " "
+            run = RunModel(
+                text=text, bold=template_run.bold, italic=template_run.italic,
+                underline=template_run.underline, color=template_run.color,
+                size_pt=template_run.size_pt, font=template_run.font,
+                rtl=template_run.rtl,
+            )
+            self._write_run(w, run)
+            w.close("w:p")
 
     def _write_runs_with_hyperlinks(self, w: XmlWriter, runs: list[RunModel]) -> None:
         """Write runs, grouping consecutive hyperlinked runs into <w:hyperlink>."""
-        i = 0
-        while i < len(runs):
-            run = runs[i]
-            if run.hyperlink_url:
-                url = run.hyperlink_url
+        for url, group in group_runs_by_hyperlink(runs):
+            if url:
                 rel_id = self._get_hyperlink_rel(url)
                 w.open("w:hyperlink", {"r:id": rel_id})
-                while i < len(runs) and runs[i].hyperlink_url == url:
-                    self._write_run(w, runs[i])
-                    i += 1
+                for r in group:
+                    self._write_run(w, r)
                 w.close("w:hyperlink")
             else:
-                self._write_run(w, run)
-                i += 1
+                for r in group:
+                    self._write_run(w, r)
 
     def _get_hyperlink_rel(self, url: str) -> str:
         if url in self._hyperlink_cache:
@@ -351,12 +379,25 @@ class DocxWriter:
     # ------------------------------------------------------------------
 
     def _write_box(self, w: XmlWriter, box: BoxModel) -> None:
+        # Badge mode: inline text
+        if box.inline:
+            self._write_badge_inline(w, box)
+            return
+
+        # Banner/callout mode: accent paragraphs (content already styled by converter)
+        if box.accent and not box.rounded:
+            for item in box.content:
+                self._write_item(w, item)
+            return
+
+        # Standard box: table-cell container
         section = self._model.sections[-1] if self._model.sections else SectionModel()
         cw = content_width_twip(section.paper, section.margin)
+        box_w = (cw * box.width_pct // 100) if box.width_pct else cw
 
         w.open("w:tbl")
         w.open("w:tblPr")
-        w.tag("w:tblW", {"w:w": str(cw), "w:type": "dxa"})
+        w.tag("w:tblW", {"w:w": str(box_w), "w:type": "dxa"})
         w.open("w:tblCellMar")
         w.tag("w:top",    {"w:w": "100", "w:type": "dxa"})
         w.tag("w:left",   {"w:w": "160", "w:type": "dxa"})
@@ -364,7 +405,7 @@ class DocxWriter:
         w.tag("w:right",  {"w:w": "160", "w:type": "dxa"})
         w.close("w:tblCellMar")
         w.open("w:tblBorders")
-        stroke_color = box.stroke or "BFBFBF"
+        stroke_color = box.stroke or DEFAULT_BORDER_COLOR
         if box.stroke:
             for side in ("top", "left", "bottom", "right"):
                 w.tag(f"w:{side}", {"w:val": "single", "w:sz": "4",
@@ -380,9 +421,13 @@ class DocxWriter:
         w.close("w:tblPr")
 
         w.open("w:tr")
+        if box.height_pt:
+            w.open("w:trPr")
+            w.tag("w:trHeight", {"w:val": str(box.height_pt * 20), "w:hRule": "atLeast"})
+            w.close("w:trPr")
         w.open("w:tc")
         w.open("w:tcPr")
-        w.tag("w:tcW", {"w:w": str(cw), "w:type": "dxa"})
+        w.tag("w:tcW", {"w:w": str(box_w), "w:type": "dxa"})
         if box.fill:
             w.tag("w:shd", {"w:val": "clear", "w:color": "auto", "w:fill": box.fill})
         w.close("w:tcPr")
@@ -396,36 +441,25 @@ class DocxWriter:
         w.close("w:tr")
         w.close("w:tbl")
 
+        # Minimal trailing paragraph (required by OOXML after tables)
         w.open("w:p")
-        w.open("w:pPr"); w.tag("w:spacing", {"w:before": "0", "w:after": "120"}); w.close("w:pPr")
+        w.open("w:pPr"); w.tag("w:spacing", {"w:before": "0", "w:after": "0"}); w.close("w:pPr")
         w.close("w:p")
 
-    # ------------------------------------------------------------------
-    # Banner
-    # ------------------------------------------------------------------
-
-    def _write_banner(self, w: XmlWriter, banner: BannerModel) -> None:
-        for para in banner.paragraphs:
-            self._write_paragraph(w, para)
-
-    # ------------------------------------------------------------------
-    # Badge
-    # ------------------------------------------------------------------
-
-    def _write_badge(self, w: XmlWriter, badge: BadgeModel) -> None:
+    def _write_badge_inline(self, w: XmlWriter, box: BoxModel) -> None:
         w.open("w:p")
         w.open("w:pPr")
-        if badge.align != "left":
-            jc = {"center": "center", "right": "right"}.get(badge.align, "left")
+        if box.align != "left":
+            jc = {"center": "center", "right": "right"}.get(box.align, "left")
             w.tag("w:jc", {"w:val": jc})
         w.tag("w:spacing", {"w:after": "160"})
         w.close("w:pPr")
 
-        padded = f"  {badge.text}  "
+        padded = f"  {box.text or ''}  "
         w.open("w:r")
         w.open("w:rPr")
-        if badge.color: w.tag("w:color", {"w:val": badge.color})
-        if badge.fill:  w.tag("w:shd", {"w:val": "clear", "w:color": "auto", "w:fill": badge.fill})
+        if box.color: w.tag("w:color", {"w:val": box.color})
+        if box.fill:  w.tag("w:shd", {"w:val": "clear", "w:color": "auto", "w:fill": box.fill})
         w.close("w:rPr")
         w.w_t(padded)
         w.close("w:r")
@@ -451,7 +485,7 @@ class DocxWriter:
             w.open("w:tblBorders")
             for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
                 w.tag(f"w:{side}", {"w:val": "single", "w:sz": "4",
-                                    "w:space": "0", "w:color": "BFBFBF"})
+                                    "w:space": "0", "w:color": DEFAULT_BORDER_COLOR})
             w.close("w:tblBorders")
 
         w.open("w:tblCellMar")
@@ -501,9 +535,9 @@ class DocxWriter:
 
         w.close("w:tbl")
 
-        # Spacing after table
+        # Minimal trailing paragraph (required by OOXML after tables)
         w.open("w:p")
-        w.open("w:pPr"); w.tag("w:spacing", {"w:before": "0", "w:after": "120"}); w.close("w:pPr")
+        w.open("w:pPr"); w.tag("w:spacing", {"w:before": "0", "w:after": "0"}); w.close("w:pPr")
         w.close("w:p")
 
     # ------------------------------------------------------------------
@@ -659,40 +693,22 @@ class DocxWriter:
     # ------------------------------------------------------------------
 
     def _write_row(self, w: XmlWriter, row: RowModel) -> None:
+        # Check if row contains only drawing shapes (old behavior: inline shapes in a paragraph)
+        all_shapes = all(isinstance(item, ShapeModel) for item in row.items)
+
+        if all_shapes and row.items:
+            self._write_row_shapes(w, row)
+        else:
+            self._write_row_mixed(w, row)
+
+    def _write_row_shapes(self, w: XmlWriter, row: RowModel) -> None:
+        """Row of drawing shapes rendered as inline shapes in a centered paragraph."""
         w.open("w:p")
         w.open("w:pPr"); w.tag("w:jc", {"w:val": "center"}); w.close("w:pPr")
         shape_w = inch_to_emu(1.4); shape_h = inch_to_emu(0.6)
 
-        for i, shape in enumerate(row.shapes):
-            sid = self._next_shape_id()
-            w.open("w:r")
-            w.open("w:rPr"); w.close("w:rPr")
-            w.open("w:drawing")
-            w.open("wp:inline", {"distT": "0", "distB": "0", "distL": "57150", "distR": "57150"})
-            w.tag("wp:extent", {"cx": str(shape_w), "cy": str(shape_h)})
-            w.tag("wp:effectExtent", {"l": "0", "t": "0", "r": "0", "b": "0"})
-            w.tag("wp:docPr", {"id": str(sid), "name": f"Shape{sid}"})
-            w.open("a:graphic", {"xmlns:a": _A_NS})
-            w.open("a:graphicData", {"uri": _WPS_URI})
-            w.open("wps:wsp")
-            w.open("wps:spPr")
-            preset = "roundRect" if shape.rounded else shape.preset
-            w.open("a:prstGeom", {"prst": preset})
-            w.tag("a:avLst"); w.close("a:prstGeom")
-            self._write_fill(w, shape.fill)
-            self._write_stroke(w, shape)
-            w.close("wps:spPr")
-            if shape.paragraphs:
-                w.open("wps:txbx"); w.open("w:txbxContent")
-                for para in shape.paragraphs:
-                    self._write_paragraph(w, para)
-                w.close("w:txbxContent"); w.close("wps:txbx")
-            w.open("wps:bodyPr", {"wrap": "square",
-                                   "lIns": "91440", "tIns": "45720",
-                                   "rIns": "91440", "bIns": "45720"})
-            w.close("wps:bodyPr")
-            w.close("wps:wsp"); w.close("a:graphicData"); w.close("a:graphic")
-            w.close("wp:inline"); w.close("w:drawing"); w.close("w:r")
+        for i, shape in enumerate(row.items):
+            self._write_shape_inline(w, shape, shape_w, shape_h)
 
             if i < len(row.arrows):
                 label = row.arrows[i]
@@ -700,6 +716,71 @@ class DocxWriter:
                 w.open("w:r"); w.open("w:rPr"); w.close("w:rPr")
                 w.w_t(arrow_text); w.close("w:r")
         w.close("w:p")
+
+    def _write_row_mixed(self, w: XmlWriter, row: RowModel) -> None:
+        """Row of mixed content rendered as equal-width table columns."""
+        if not row.items:
+            return
+        section = self._model.sections[-1] if self._model.sections else SectionModel()
+        cw = content_width_twip(section.paper, section.margin)
+        col_w = cw // len(row.items)
+
+        w.open("w:tbl")
+        w.open("w:tblPr")
+        w.tag("w:tblW", {"w:w": str(cw), "w:type": "dxa"})
+        w.tag("w:tblLayout", {"w:type": "fixed"})
+        w.close("w:tblPr")
+        w.open("w:tblGrid")
+        for _ in row.items:
+            w.tag("w:gridCol", {"w:w": str(col_w)})
+        w.close("w:tblGrid")
+
+        w.open("w:tr")
+        for item in row.items:
+            w.open("w:tc")
+            w.open("w:tcPr")
+            w.tag("w:tcW", {"w:w": str(col_w), "w:type": "dxa"})
+            w.close("w:tcPr")
+            self._write_item(w, item)
+            # Ensure at least one paragraph in cell
+            if not isinstance(item, ParagraphModel):
+                pass  # _write_item handles its own paragraphs
+            w.close("w:tc")
+        w.close("w:tr")
+        w.close("w:tbl")
+
+    def _write_shape_inline(self, w: XmlWriter, shape: ShapeModel,
+                            shape_w: int, shape_h: int) -> None:
+        """Write a single drawing shape as an inline element."""
+        sid = self._next_shape_id()
+        w.open("w:r")
+        w.open("w:rPr"); w.close("w:rPr")
+        w.open("w:drawing")
+        w.open("wp:inline", {"distT": "0", "distB": "0", "distL": "57150", "distR": "57150"})
+        w.tag("wp:extent", {"cx": str(shape_w), "cy": str(shape_h)})
+        w.tag("wp:effectExtent", {"l": "0", "t": "0", "r": "0", "b": "0"})
+        w.tag("wp:docPr", {"id": str(sid), "name": f"Shape{sid}"})
+        w.open("a:graphic", {"xmlns:a": _A_NS})
+        w.open("a:graphicData", {"uri": _WPS_URI})
+        w.open("wps:wsp")
+        w.open("wps:spPr")
+        preset = "roundRect" if shape.rounded else shape.preset
+        w.open("a:prstGeom", {"prst": preset})
+        w.tag("a:avLst"); w.close("a:prstGeom")
+        self._write_fill(w, shape.fill)
+        self._write_stroke(w, shape)
+        w.close("wps:spPr")
+        if shape.paragraphs:
+            w.open("wps:txbx"); w.open("w:txbxContent")
+            for para in shape.paragraphs:
+                self._write_paragraph(w, para)
+            w.close("w:txbxContent"); w.close("wps:txbx")
+        w.open("wps:bodyPr", {"wrap": "square",
+                               "lIns": "91440", "tIns": "45720",
+                               "rIns": "91440", "bIns": "45720"})
+        w.close("wps:bodyPr")
+        w.close("wps:wsp"); w.close("a:graphicData"); w.close("a:graphic")
+        w.close("wp:inline"); w.close("w:drawing"); w.close("w:r")
 
     # ------------------------------------------------------------------
     # Fill / Stroke helpers
@@ -756,15 +837,16 @@ class DocxWriter:
             w.close("w:tr")
 
         w.close("w:tbl")
+        # Minimal trailing paragraph (required by OOXML after tables)
         w.open("w:p"); w.open("w:pPr")
-        w.tag("w:spacing", {"w:before": "0", "w:after": "80"})
+        w.tag("w:spacing", {"w:before": "0", "w:after": "0"})
         w.close("w:pPr"); w.close("w:p")
 
     # ------------------------------------------------------------------
     # Page break
     # ------------------------------------------------------------------
 
-    def _write_page_break(self, w: XmlWriter) -> None:
+    def _write_page_break(self, w: XmlWriter, _item=None) -> None:
         w.open("w:p"); w.open("w:r")
         w.tag("w:br", {"w:type": "page"})
         w.close("w:r"); w.close("w:p")
@@ -820,285 +902,13 @@ class DocxWriter:
     # Numbering XML
     # ------------------------------------------------------------------
 
-    def _build_numbering_xml(self) -> str:
-        w = XmlWriter()
-        w.declaration()
-        w.open("w:numbering", {"xmlns:w": _W_NS})
-
-        # Abstract 0: bullet list
-        w.open("w:abstractNum", {"w:abstractNumId": "0"})
-        w.tag("w:multiLevelType", {"w:val": "hybridMultilevel"})
-        bullets = ["\u2022", "\u25E6", "\u2013"]  # •, ◦, –
-        for lvl in range(3):
-            w.open("w:lvl", {"w:ilvl": str(lvl)})
-            w.tag("w:start", {"w:val": "1"})
-            w.tag("w:numFmt", {"w:val": "bullet"})
-            w.tag("w:lvlText", {"w:val": bullets[lvl % len(bullets)]})
-            w.tag("w:lvlJc", {"w:val": "left"})
-            w.open("w:pPr")
-            indent = 720 * (lvl + 1)
-            w.tag("w:ind", {"w:left": str(indent), "w:hanging": "360"})
-            w.close("w:pPr")
-            w.open("w:rPr")
-            w.tag("w:rFonts", {"w:ascii": "Calibri", "w:hAnsi": "Calibri", "w:hint": "default"})
-            w.close("w:rPr")
-            w.close("w:lvl")
-        w.close("w:abstractNum")
-
-        # Abstract 1: ordered list
-        w.open("w:abstractNum", {"w:abstractNumId": "1"})
-        w.tag("w:multiLevelType", {"w:val": "hybridMultilevel"})
-        formats = [("decimal", "%1."), ("lowerLetter", "%2."), ("lowerRoman", "%3.")]
-        for lvl in range(3):
-            fmt, text = formats[lvl % len(formats)]
-            w.open("w:lvl", {"w:ilvl": str(lvl)})
-            w.tag("w:start", {"w:val": "1"})
-            w.tag("w:numFmt", {"w:val": fmt})
-            w.tag("w:lvlText", {"w:val": text})
-            w.tag("w:lvlJc", {"w:val": "left"})
-            w.open("w:pPr")
-            indent = 720 * (lvl + 1)
-            w.tag("w:ind", {"w:left": str(indent), "w:hanging": "360"})
-            w.close("w:pPr")
-            w.close("w:lvl")
-        w.close("w:abstractNum")
-
-        # Concrete instances
-        w.open("w:num", {"w:numId": "1"})
-        w.tag("w:abstractNumId", {"w:val": "0"})
-        w.close("w:num")
-        w.open("w:num", {"w:numId": "2"})
-        w.tag("w:abstractNumId", {"w:val": "1"})
-        w.close("w:num")
-
-        w.close("w:numbering")
-        return w.getvalue()
-
-    # ------------------------------------------------------------------
-    # Dynamic relationships
-    # ------------------------------------------------------------------
-
-    def _build_doc_rels(self, header_rel_id: str | None = None,
-                        footer_rel_id: str | None = None,
-                        numbering_rel_id: str | None = None) -> str:
-        w = XmlWriter()
-        w.declaration()
-        w.open("Relationships", {"xmlns": _RELS_NS})
-
-        w.tag("Relationship", {"Id": "rId1",
-              "Type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles",
-              "Target": "styles.xml"})
-        w.tag("Relationship", {"Id": "rId2",
-              "Type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings",
-              "Target": "settings.xml"})
-
-        if numbering_rel_id:
-            w.tag("Relationship", {"Id": numbering_rel_id,
-                  "Type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering",
-                  "Target": "numbering.xml"})
-
-        if header_rel_id:
-            w.tag("Relationship", {"Id": header_rel_id,
-                  "Type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header",
-                  "Target": "header1.xml"})
-
-        if footer_rel_id:
-            w.tag("Relationship", {"Id": footer_rel_id,
-                  "Type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer",
-                  "Target": "footer1.xml"})
-
-        for rel_id, filename, _ in self._image_entries:
-            w.tag("Relationship", {"Id": rel_id,
-                  "Type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image",
-                  "Target": f"media/{filename}"})
-
-        for rel_id, url in self._hyperlink_rels:
-            w.tag("Relationship", {"Id": rel_id,
-                  "Type": "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
-                  "Target": url, "TargetMode": "External"})
-
-        w.close("Relationships")
-        return w.getvalue()
-
-    def _build_content_types(self, header_xml, footer_xml, numbering_xml) -> str:
-        w = XmlWriter()
-        w.declaration()
-        w.open("Types", {"xmlns": "http://schemas.openxmlformats.org/package/2006/content-types"})
-
-        w.tag("Default", {"Extension": "rels",
-              "ContentType": "application/vnd.openxmlformats-package.relationships+xml"})
-        w.tag("Default", {"Extension": "xml", "ContentType": "application/xml"})
-
-        # Image types
-        exts_seen: set[str] = set()
-        for _, filename, _ in self._image_entries:
-            ext = Path(filename).suffix.lstrip(".")
-            if ext not in exts_seen:
-                exts_seen.add(ext)
-                from .image import image_content_type
-                ct = image_content_type(filename)
-                w.tag("Default", {"Extension": ext, "ContentType": ct})
-
-        w.tag("Override", {"PartName": "/word/document.xml",
-              "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"})
-        w.tag("Override", {"PartName": "/word/styles.xml",
-              "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"})
-        w.tag("Override", {"PartName": "/word/settings.xml",
-              "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"})
-
-        if numbering_xml:
-            w.tag("Override", {"PartName": "/word/numbering.xml",
-                  "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"})
-        if header_xml:
-            w.tag("Override", {"PartName": "/word/header1.xml",
-                  "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"})
-        if footer_xml:
-            w.tag("Override", {"PartName": "/word/footer1.xml",
-                  "ContentType": "application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"})
-
-        w.close("Types")
-        return w.getvalue()
-
     # ------------------------------------------------------------------
     # Styles XML
     # ------------------------------------------------------------------
 
     def _build_styles_xml(self) -> str:
-        font = self._model.default_font
-        size = self._model.default_size_pt * 2
-        para_after, h_scale, line_sp = _SPACING_PRESETS.get(
-            self._model.spacing, _SPACING_PRESETS["normal"])
-
-        w = XmlWriter()
-        w.declaration()
-        w.open("w:styles", {"xmlns:w": _W_NS})
-
-        w.open("w:docDefaults")
-        w.open("w:rPrDefault"); w.open("w:rPr")
-        w.tag("w:rFonts", {"w:ascii": font, "w:hAnsi": font, "w:cs": font})
-        w.tag("w:sz", {"w:val": str(size)}); w.tag("w:szCs", {"w:val": str(size)})
-        w.tag("w:lang", {"w:val": "en-US", "w:eastAsia": "en-US", "w:bidi": "ar-SA"})
-        w.close("w:rPr"); w.close("w:rPrDefault")
-        w.open("w:pPrDefault"); w.open("w:pPr")
-        w.tag("w:spacing", {"w:after": str(para_after), "w:line": str(line_sp), "w:lineRule": "auto"})
-        w.close("w:pPr"); w.close("w:pPrDefault")
-        w.close("w:docDefaults")
-
-        self._write_style(w, "Normal", "Normal", is_default=True, font=font, size=size,
-                          spacing_after=para_after, line_spacing=line_sp)
-
-        for lvl, sz in {1: 36, 2: 32, 3: 28, 4: 26}.items():
-            clr = "1F3864" if lvl <= 2 else "404040"
-            before = int({1: 480, 2: 360, 3: 280, 4: 240}[lvl] * h_scale)
-            after  = int(120 * h_scale)
-            self._write_style(w, f"Heading{lvl}", f"Heading {lvl}",
-                              font=font, size=sz, bold=True, color=clr,
-                              outline_lvl=lvl - 1, spacing_before=before,
-                              spacing_after=after, line_spacing=min(line_sp, 240))
-
-        self._write_style(w, "BlockText", "Block Text", font=font, size=size,
-                          italic=True, color="404040", indent_left=720, indent_right=720,
-                          spacing_before=int(120 * h_scale),
-                          spacing_after=int(120 * h_scale), line_spacing=line_sp)
-
-        self._write_style(w, "SourceCode", "Source Code", font="Courier New", size=20,
-                          spacing_before=0, spacing_after=0, line_spacing=240)
-
-        # List Paragraph style (for bullet/numbered lists)
-        list_after = max(0, min(para_after, 40))
-        self._write_style(w, "ListParagraph", "List Paragraph", font=font, size=size,
-                          indent_left=720, spacing_after=list_after, line_spacing=line_sp)
-
-        # Hyperlink character style
-        w.open("w:style", {"w:type": "character", "w:styleId": "Hyperlink"})
-        w.tag("w:name", {"w:val": "Hyperlink"})
-        w.open("w:rPr")
-        w.tag("w:color", {"w:val": "0563C1"})
-        w.tag("w:u", {"w:val": "single"})
-        w.close("w:rPr")
-        w.close("w:style")
-
-        w.close("w:styles")
-        return w.getvalue()
-
-    def _write_style(self, w: XmlWriter, style_id: str, name: str,
-                     is_default: bool = False,
-                     font: str = "Calibri", size: int = 22,
-                     bold: bool = False, italic: bool = False,
-                     color: str | None = None,
-                     outline_lvl: int | None = None,
-                     spacing_before: int = 0, spacing_after: int = 160,
-                     indent_left: int = 0, indent_right: int = 0,
-                     line_spacing: int = 276) -> None:
-        attrs: dict = {"w:type": "paragraph", "w:styleId": style_id}
-        if is_default: attrs["w:default"] = "1"
-        w.open("w:style", attrs)
-        w.tag("w:name", {"w:val": name})
-        if not is_default: w.tag("w:basedOn", {"w:val": "Normal"})
-
-        w.open("w:pPr")
-        if outline_lvl is not None:
-            w.tag("w:outlineLvl", {"w:val": str(outline_lvl)})
-        sp: dict = {"w:line": str(line_spacing), "w:lineRule": "auto"}
-        if spacing_before: sp["w:before"] = str(spacing_before)
-        if spacing_after:  sp["w:after"]  = str(spacing_after)
-        w.tag("w:spacing", sp)
-        if indent_left or indent_right:
-            ind: dict = {}
-            if indent_left:  ind["w:left"]  = str(indent_left)
-            if indent_right: ind["w:right"] = str(indent_right)
-            w.tag("w:ind", ind)
-        w.close("w:pPr")
-
-        w.open("w:rPr")
-        w.tag("w:rFonts", {"w:ascii": font, "w:hAnsi": font, "w:cs": font})
-        w.tag("w:sz", {"w:val": str(size)}); w.tag("w:szCs", {"w:val": str(size)})
-        if bold:  w.tag("w:b", {})
-        if italic: w.tag("w:i", {})
-        if color: w.tag("w:color", {"w:val": color})
-        w.close("w:rPr")
-        w.close("w:style")
-
-
-# ---------------------------------------------------------------------------
-# Namespaces
-# ---------------------------------------------------------------------------
-
-_W_NS    = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-_R_NS    = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-_A_NS    = "http://schemas.openxmlformats.org/drawingml/2006/main"
-_WPS_URI = "http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
-_PIC_URI = "http://schemas.openxmlformats.org/drawingml/2006/picture"
-_RELS_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
-
-_NS = {
-    "xmlns:wpc": "http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas",
-    "xmlns:mc":  "http://schemas.openxmlformats.org/markup-compatibility/2006",
-    "xmlns:r":   _R_NS,
-    "xmlns:wp":  "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
-    "xmlns:w":   _W_NS,
-    "xmlns:w14": "http://schemas.microsoft.com/office/word/2010/wordml",
-    "xmlns:wpg": "http://schemas.microsoft.com/office/word/2010/wordprocessingGroup",
-    "xmlns:wps": "http://schemas.microsoft.com/office/word/2010/wordprocessingShape",
-    "xmlns:a":   _A_NS,
-    "xmlns:pic": _PIC_URI,
-}
-
-_RELS = """\
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1"
-    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
-    Target="word/document.xml"/>
-</Relationships>"""
-
-_SETTINGS = """\
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:defaultTabStop w:val="720"/>
-  <w:compat>
-    <w:compatSetting w:name="compatibilityMode"
-      w:uri="http://schemas.microsoft.com/office/word"
-      w:val="15"/>
-  </w:compat>
-</w:settings>"""
+        return build_styles_xml(
+            font=self._model.default_font,
+            size_pt=self._model.default_size_pt,
+            spacing=self._model.spacing,
+        )

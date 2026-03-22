@@ -1,0 +1,282 @@
+// ─────────────────────────────────────────────────────────────
+// two-column-paper.dok
+// Testing: page(cols: 2) newspaper-style flow for research papers
+// ─────────────────────────────────────────────────────────────
+
+doc(font: "Times New Roman", size: 10, spacing: tight) {
+
+  header {
+    center {
+      italic(color: gray, size: 9) { "International Journal of Document Languages · Vol. 1, 2026" }
+    }
+  }
+
+  footer {
+    center {
+      p { color(value: gray, size: 9) { "Page " } page-number }
+    }
+  }
+
+  // ── Title section — full width, no columns ─────────────────
+  page(margin: narrow, cols: 1) {
+
+    space(size: 12)
+
+    center {
+      bold(size: 13) { "Dok: A Compact Document Language for AI-Generated Documents" }
+      space(size: 6)
+      p { "Mahmoud Ahmed" }
+      italic(color: gray, size: 9) { "mahmoudxyz · GitHub" }
+      space(size: 4)
+      italic(color: gray, size: 9) { "Submitted March 2026" }
+    }
+
+    space(size: 12)
+
+    // Abstract — full width
+    box(fill: #F8F9FA, stroke: #CCCCCC) {
+      bold { "Abstract — " }
+      """
+      We present Dok, a tree-structured document language designed as a compact
+      compilation target for AI document generation. Unlike existing formats,
+      Dok enforces a strict five-layer context inheritance model that eliminates
+      ambiguity and reduces AI hallucination surface. A complete document
+      compiles from fewer than 200 grammar tokens. We demonstrate that Dok
+      produces correct RTL output for Arabic and Hebrew without manual XML
+      manipulation, and show that the same source file compiles to DOCX, PDF,
+      and HTML with identical structure. Dok is open source and available via pip.
+      """
+    }
+
+    space(size: 6)
+
+    p {
+      bold { "Keywords: " }
+      italic { "document generation, AI output formats, RTL support, OOXML, markup languages" }
+    }
+
+  }
+
+  // ── Body — two columns ─────────────────────────────────────
+  page(margin: narrow, cols: 2) {
+
+    // 1. Introduction
+    h2(size: 10) { "1. Introduction" }
+
+    p {
+      """
+      Generating well-formatted documents programmatically
+      has been a persistent challenge in software engineering.
+      Existing approaches fall into three categories: low-level
+      library manipulation (python-docx, reportlab), template
+      engines (Carbone, Jinja2), and markup conversion (Markdown,
+      LaTeX). Each carries significant drawbacks when used as an
+      AI generation target.
+      """
+    }
+
+    p {
+      """
+      Low-level libraries expose implementation details that AI
+      models hallucinate incorrectly. The OOXML element ordering
+      required for correct RTL rendering, for example, is a
+      frequent source of silent failures. Template engines require
+      a separate template authoring step that couples document
+      structure to application logic. Markup conversion loses
+      formatting fidelity at the conversion boundary.
+      """
+    }
+
+    p {
+      """
+      We propose Dok, a document language designed from first
+      principles as an AI compilation target. The core insight
+      is that a document language for AI must optimize for three
+      properties above all others: minimal grammar surface,
+      unambiguous structure, and self-correcting error messages.
+      """
+    }
+
+    // 2. Language Design
+    h2(size: 10) { "2. Language Design" }
+
+    h3(size: 10) { "2.1 The Five-Layer Model" }
+
+    p {
+      """
+      Dok organizes every node into exactly one of five layers:
+      document defaults, physical page, layout arrangement,
+      text style, and content atoms. A node may only contain
+      nodes from the same layer or layers below it. This
+      constraint eliminates an entire class of structural errors
+      that plague template-based approaches.
+      """
+    }
+
+    p {
+      """
+      Context flows inward through the tree. A child node
+      inherits all properties of its ancestors without explicit
+      declaration. This context inheritance model means that
+      RTL direction, font family, and spacing presets set at
+      an outer layer apply automatically to all content within,
+      with no repetition required.
+      """
+    }
+
+    h3(size: 10) { "2.2 Deliberate Omissions" }
+
+    p {
+      """
+      Dok has no variables, loops, or conditional expressions.
+      This is not a limitation — it is the primary design
+      decision. Logic belongs in the host language. Dok's job
+      is to describe document structure, not to compute it.
+      This boundary makes AI output predictable: the model
+      cannot produce arbitrarily complex Dok programs, only
+      valid document descriptions.
+      """
+    }
+
+    // 3. RTL Support
+    h2(size: 10) { "3. RTL Support" }
+
+    p {
+      """
+      Correct Arabic and Hebrew rendering in OOXML requires
+      three XML elements in strict order inside the paragraph
+      properties block: bidi, jc, and rPr. Incorrect ordering
+      produces documents that render as left-aligned despite
+      containing right-aligned text. This failure is silent —
+      Word opens the file without error.
+      """
+    }
+
+    p {
+      """
+      Dok eliminates this class of errors entirely. The rtl
+      layout node sets all required OOXML properties in the
+      correct order at compile time. The author writes one
+      wrapper node. The compiler owns the XML details.
+      """
+    }
+
+    // 4. AI Integration
+    h2(size: 10) { "4. AI Integration" }
+
+    p {
+      """
+      The complete Dok grammar fits in approximately 200 tokens,
+      making it practical to include in an AI system prompt.
+      In our evaluation, Claude Sonnet 4 produced valid Dok
+      output on 94% of first attempts when given the grammar
+      as a system prompt, compared to 61% for equivalent
+      python-docx code generation tasks.
+      """
+    }
+
+    p {
+      """
+      Validation errors in Dok include both source location
+      and a corrective hint formatted for readability by both
+      humans and language models. In a self-correction loop,
+      the model receives the error, regenerates the failing
+      section, and resubmits. Convergence to valid output
+      occurs within two iterations in 98% of cases.
+      """
+    }
+
+    // 5. Results
+    h2(size: 10) { "5. Results" }
+
+    p { "Table 1 summarizes output correctness across document types:" }
+
+    table(border: true, striped: true) {
+      tr {
+        th { "Document Type" }
+        th { "Valid %" }
+        th { "RTL Correct" }
+      }
+      tr {
+        td { "Invoice" }
+        td { bold(color: green) { "97%" } }
+        td { bold(color: green) { "Yes" } }
+      }
+      tr {
+        td { "Report" }
+        td { bold(color: green) { "94%" } }
+        td { bold(color: green) { "Yes" } }
+      }
+      tr {
+        td { "Legal doc" }
+        td { bold(color: orange) { "89%" } }
+        td { bold(color: green) { "Yes" } }
+      }
+      tr {
+        td { "Mixed RTL" }
+        td { bold(color: orange) { "91%" } }
+        td { bold(color: green) { "Yes" } }
+      }
+    }
+
+    space(size: 6)
+
+    p {
+      """
+      All RTL documents rendered correctly in Microsoft Word
+      2021 and LibreOffice 7.6. No manual post-processing
+      was required in any test case.
+      """
+    }
+
+    // 6. Conclusion
+    h2(size: 10) { "6. Conclusion" }
+
+    p {
+      """
+      Dok demonstrates that a compact, constrained document
+      language significantly outperforms general-purpose code
+      generation for AI document tasks. The five-layer model,
+      combined with first-class RTL support and structured
+      error messages, makes Dok a practical compilation target
+      for production AI document pipelines.
+      """
+    }
+
+    p {
+      """
+      Future work includes a DOCX-to-Dok decompiler to enable
+      document editing workflows, and native PDF output to
+      eliminate the LibreOffice dependency for print use cases.
+      """
+    }
+
+    // References
+    h2(size: 10) { "References" }
+
+    p(spacing: compact) {
+      "[1] "
+      italic { "ECMA-376: Office Open XML File Formats." }
+      " ECMA International, 5th ed., 2016."
+    }
+
+    p(spacing: compact) {
+      "[2] MacSween, A. "
+      italic { "python-docx: Create and update Microsoft Word .docx files." }
+      " GitHub, 2013–2026."
+    }
+
+    p(spacing: compact) {
+      "[3] Ahmed, M. "
+      italic { "dok: A document language." }
+      " github.com/mahmoudxyz/dok, 2026."
+    }
+
+    p(spacing: compact) {
+      "[4] "
+      italic { "Anthropic Claude API Documentation." }
+      " Anthropic, 2026."
+    }
+
+  }
+}

@@ -95,23 +95,7 @@ doc(font: Calibri, size: 11) {
 
     section-header(title: "Skills")
 
-    p {
-      skill-tag(name: "Go")
-      " "
-      skill-tag(name: "Python")
-      " "
-      skill-tag(name: "Rust")
-      " "
-      skill-tag(name: "PostgreSQL")
-      " "
-      skill-tag(name: "Kafka")
-      " "
-      skill-tag(name: "Kubernetes")
-      " "
-      skill-tag(name: "gRPC")
-      " "
-      skill-tag(name: "AWS")
-    }
+    badge(fill: #E8F4FD, color: #2C3E50) { p {"python" } }
 
   }
 }

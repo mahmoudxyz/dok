@@ -15,8 +15,9 @@ from typing import Any
 
 from .nodes import (
     Node, ElementNode, TextNode, ArrowNode, FunctionDefNode,
-    ImportNode, ALL_KNOWN_NODES,
+    ImportNode,
 )
+from . import registry
 from .errors import ResolveError, SourceLoc
 
 _MAX_DEPTH = 16
@@ -86,7 +87,7 @@ def resolve(nodes: list[Node]) -> list[Node]:
 
     for node in nodes:
         if isinstance(node, FunctionDefNode):
-            if node.name in ALL_KNOWN_NODES:
+            if registry.get(node.name) is not None:
                 raise ResolveError(
                     f"Cannot define function '{node.name}' — "
                     f"it conflicts with a built-in element",

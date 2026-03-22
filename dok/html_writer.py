@@ -18,39 +18,21 @@ import io
 import mimetypes
 from pathlib import Path
 
-from .converter import (
+from .constants import (
+    twip_to_px, twip_to_pt, emu_to_px,
+    MARGIN_PRESETS_PX, PAPER_MAX_WIDTH_PX,
+    HYPERLINK_COLOR, DEFAULT_BORDER_COLOR,
+)
+from .writer_utils import group_runs_by_hyperlink
+from .models import (
     DocxModel, ParagraphModel, RunModel, ShapeModel,
     RowModel, TableModel, TableCellModel,
     PageBreakModel, SectionModel,
-    LineModel, BoxModel, BannerModel, BadgeModel,
+    LineModel, BoxModel,
     DataTableModel, DataTableRowModel, DataTableCellModel,
     ImageModel, SpacerModel, HeaderModel, FooterModel,
-    _SPACING_PRESETS,
+    SPACING_PRESETS,
 )
-
-
-# ---------------------------------------------------------------------------
-# Units  (twips / EMUs → CSS)
-# ---------------------------------------------------------------------------
-
-def twip_to_px(t: int) -> float:   return round(t / 14.4, 2)     # 1440 twip = 100 px (96 dpi)
-def twip_to_pt(t: int) -> float:   return round(t / 20, 2)        # 1 twip = 1/20 pt
-def emu_to_px(e: int) -> float:    return round(e / 9144, 2)       # 914400 EMU = 100 px (96 dpi)
-
-
-MARGIN_PRESETS_PX = {
-    "normal": {"top": 96, "right": 96, "bottom": 96, "left": 96},
-    "narrow": {"top": 48, "right": 48, "bottom": 48, "left": 48},
-    "wide":   {"top": 96, "right": 192, "bottom": 96, "left": 192},
-    "none":   {"top":  0, "right":   0, "bottom":  0, "left":   0},
-}
-
-# Approximate A4 / Letter content widths in px at 96 dpi
-PAPER_MAX_WIDTH_PX = {
-    "a4":     794,
-    "letter": 816,
-    "a3":     1123,
-}
 
 HIGHLIGHT_CSS = {
     "yellow":   "#FFFF00", "green":  "#00FF00", "cyan":  "#00FFFF",
@@ -105,8 +87,8 @@ class HtmlWriter:
         max_w   = PAPER_MAX_WIDTH_PX.get(section.paper, PAPER_MAX_WIDTH_PX["a4"])
         content_w = max_w - margins["left"] - margins["right"]
 
-        para_after, h_scale, line_sp = _SPACING_PRESETS.get(
-            self._model.spacing, _SPACING_PRESETS["normal"]
+        para_after, h_scale, line_sp = SPACING_PRESETS.get(
+            self._model.spacing, SPACING_PRESETS["normal"]
         )
 
         font      = self._model.default_font
@@ -128,9 +110,13 @@ class HtmlWriter:
                 parts.append(self._render_paragraph(para))
             parts.append("</header>\n")
 
-        parts.append('<main class="doc-body">\n')
-        for item in self._model.content:
-            parts.append(self._render_item(item))
+        # Apply CSS columns for section-level column layout
+        col_style = ""
+        if section.cols > 1:
+            col_style = (f' style="column-count:{section.cols};column-gap:24px;'
+                         f'column-rule:1px solid #e0e0e0"')
+        parts.append(f'<main class="doc-body"{col_style}>\n')
+        parts.append(self._render_items(self._model.content))
         parts.append("</main>\n")
 
         # Footer
@@ -233,12 +219,16 @@ p:last-child {{ margin-bottom: 0; }}
 
 /* ---- Source code ---- */
 .source-code {{
-  font-family: 'Courier New', monospace;
+  font-family: 'Courier New', Consolas, monospace;
   font-size: 10pt;
-  line-height: 1.0;
+  line-height: 1.4;
   white-space: pre-wrap;
-  background: #f8f8f8;
-  padding: 2px 4px;
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 4px 0;
+  overflow-x: auto;
 }}
 
 /* ---- Horizontal rule ---- */
@@ -349,20 +339,77 @@ a:hover {{ color: #033E8F; }}
     # Item dispatcher
     # ------------------------------------------------------------------
 
+    def _render_items(self, items: list) -> str:
+        """
+        Render a sequence of content items, grouping consecutive list
+        paragraphs (those with num_id set) into proper <ul>/<ol><li> blocks.
+
+        This must be used everywhere a loop over items occurs so that list
+        grouping works correctly at every nesting level — top-level body,
+        inside boxes, table cells, banners, etc.
+
+        num_id 1 → bullet  <ul>
+        num_id 2 → ordered <ol>
+        Different num_id values start a fresh list block.
+        """
+        parts: list[str] = []
+        i = 0
+        while i < len(items):
+            item = items[i]
+
+            # ---- List paragraph: collect the whole run into one <ul>/<ol> ----
+            if isinstance(item, ParagraphModel) and item.num_id:
+                num_id   = item.num_id
+                list_tag = "ol" if num_id == 2 else "ul"
+                parts.append(f"<{list_tag}>\n")
+
+                while (
+                    i < len(items)
+                    and isinstance(items[i], ParagraphModel)
+                    and items[i].num_id == num_id
+                ):
+                    li      = items[i]
+                    indent  = li.num_ilvl or 0
+                    # Nested levels → extra left margin; level 0 needs none
+                    # (the <ul>/<ol> already carries the base indent from CSS)
+                    style   = (f' style="margin-left:{indent * 1.5}em"'
+                               if indent else "")
+                    inner   = self._render_runs(li.runs)
+                    parts.append(f"<li{style}>{inner}</li>\n")
+                    i += 1
+
+                parts.append(f"</{list_tag}>\n")
+
+            # ---- Every other item ----
+            else:
+                parts.append(self._render_item(item))
+                i += 1
+
+        return "".join(parts)
+
+    _DISPATCH: dict[type, str] = {
+        ParagraphModel: "_render_paragraph",
+        LineModel:      "_render_line",
+        BoxModel:       "_render_box",
+        DataTableModel: "_render_data_table",
+        ImageModel:     "_render_image",
+        SpacerModel:    "_render_spacer",
+        ShapeModel:     "_render_shape",
+        RowModel:       "_render_row",
+        TableModel:     "_render_table",
+        PageBreakModel: "_render_page_break",
+    }
+
     def _render_item(self, item) -> str:
-        if isinstance(item, ParagraphModel):   return self._render_paragraph(item)
-        if isinstance(item, LineModel):        return self._render_line(item)
-        if isinstance(item, BoxModel):         return self._render_box(item)
-        if isinstance(item, BannerModel):      return self._render_banner(item)
-        if isinstance(item, BadgeModel):       return self._render_badge(item)
-        if isinstance(item, DataTableModel):   return self._render_data_table(item)
-        if isinstance(item, ImageModel):       return self._render_image(item)
-        if isinstance(item, SpacerModel):      return self._render_spacer(item)
-        if isinstance(item, ShapeModel):       return self._render_shape(item)
-        if isinstance(item, RowModel):         return self._render_row(item)
-        if isinstance(item, TableModel):       return self._render_table(item)
-        if isinstance(item, PageBreakModel):   return '<div class="page-break"></div>\n'
+        """Render a single non-list item. Use _render_items() for sequences."""
+        handler = self._DISPATCH.get(type(item))
+        if handler:
+            return getattr(self, handler)(item)
         return ""
+
+    @staticmethod
+    def _render_page_break(_item=None) -> str:
+        return '<div class="page-break"></div>\n'
 
     # ------------------------------------------------------------------
     # Paragraph
@@ -391,6 +438,9 @@ a:hover {{ color: #033E8F; }}
             styles.append(
                 f"border-left:{sz_px}px solid #{para.border_left};padding-left:8px"
             )
+        if para.line_spacing:
+            lh = round(para.line_spacing / 240, 3)
+            styles.append(f"line-height:{lh}")
 
         style_attr  = f' style="{";".join(styles)}"' if styles else ""
         class_attr  = f' class="{css_class}"' if css_class else ""
@@ -423,21 +473,14 @@ a:hover {{ color: #033E8F; }}
 
     def _render_runs(self, runs: list[RunModel]) -> str:
         parts: list[str] = []
-        i = 0
-        while i < len(runs):
-            run = runs[i]
-            if run.hyperlink_url:
-                url = run.hyperlink_url
-                link_runs: list[RunModel] = []
-                while i < len(runs) and runs[i].hyperlink_url == url:
-                    link_runs.append(runs[i])
-                    i += 1
-                inner = "".join(self._render_run(r) for r in link_runs)
+        for url, group in group_runs_by_hyperlink(runs):
+            if url:
+                inner = "".join(self._render_run(r) for r in group)
                 safe_url = html.escape(url, quote=True)
                 parts.append(f'<a href="{safe_url}">{inner}</a>')
             else:
-                parts.append(self._render_run(run))
-                i += 1
+                for r in group:
+                    parts.append(self._render_run(r))
         return "".join(parts)
 
     def _render_run(self, run: RunModel) -> str:
@@ -527,41 +570,43 @@ a:hover {{ color: #033E8F; }}
     # ------------------------------------------------------------------
 
     def _render_box(self, box: BoxModel) -> str:
+        # Badge mode: inline text
+        if box.inline:
+            return self._render_badge_inline(box)
+
+        # Banner/callout mode: accent paragraphs (already styled by converter)
+        if box.accent and not box.rounded:
+            inner = self._render_items(box.content or [])
+            return f'<div class="doc-banner">{inner}</div>\n'
+
+        # Standard box
         styles: list[str] = []
         if box.fill:
             styles.append(f"background-color:#{box.fill}")
         if box.stroke:
             styles.append(f"border:1px solid #{box.stroke}")
+        if box.width_pct:
+            styles.append(f"width:{box.width_pct}%")
+        if box.height_pt:
+            px = round(box.height_pt * 1.333)
+            styles.append(f"min-height:{px}px")
         style_attr = f' style="{";".join(styles)}"' if styles else ""
 
-        inner_parts = [self._render_item(i) for i in (box.content or [])]
-        inner = "".join(inner_parts) or "&nbsp;"
+        inner = self._render_items(box.content or []) or "&nbsp;"
         return f'<div class="doc-box"{style_attr}>\n{inner}</div>\n'
 
-    # ------------------------------------------------------------------
-    # Banner
-    # ------------------------------------------------------------------
-
-    def _render_banner(self, banner: BannerModel) -> str:
-        parts = [self._render_paragraph(p) for p in banner.paragraphs]
-        return f'<div class="doc-banner">{"".join(parts)}</div>\n'
-
-    # ------------------------------------------------------------------
-    # Badge
-    # ------------------------------------------------------------------
-
-    def _render_badge(self, badge: BadgeModel) -> str:
+    def _render_badge_inline(self, box: BoxModel) -> str:
         styles: list[str] = []
-        if badge.color: styles.append(f"color:#{badge.color}")
-        if badge.fill:  styles.append(f"background-color:#{badge.fill}")
+        if box.color: styles.append(f"color:#{box.color}")
+        if box.fill:  styles.append(f"background-color:#{box.fill}")
 
         align_map = {"center": "center", "right": "right"}
         wrap_style = ""
-        if badge.align in align_map:
-            wrap_style = f' style="text-align:{align_map[badge.align]}"'
+        if box.align in align_map:
+            wrap_style = f' style="text-align:{align_map[box.align]}"'
 
         style_attr = f' style="{";".join(styles)}"' if styles else ""
-        text = html.escape(badge.text)
+        text = html.escape(box.text or "")
         return (
             f'<p{wrap_style}>'
             f'<span class="doc-badge"{style_attr}>{text}</span>'
@@ -590,7 +635,7 @@ a:hover {{ color: #033E8F; }}
             for cell in row.cells:
                 tag = "th" if row.is_header else "td"
                 colspan_attr = f' colspan="{cell.colspan}"' if cell.colspan > 1 else ""
-                inner = "".join(self._render_item(i) for i in (cell.content or []))
+                inner = self._render_items(cell.content or [])
                 cells_html.append(f"<{tag}{colspan_attr}>{inner or '&nbsp;'}</{tag}>")
 
             rows_html.append(f"<tr{tr_class}>{''.join(cells_html)}</tr>")
@@ -688,16 +733,30 @@ a:hover {{ color: #033E8F; }}
     # ------------------------------------------------------------------
 
     def _render_row(self, row: RowModel) -> str:
-        parts: list[str] = ['<div class="shape-row">\n']
-        shape_w, shape_h = 134.0, 57.6
+        all_shapes = all(isinstance(item, ShapeModel) for item in row.items)
 
-        for i, shape in enumerate(row.shapes):
-            parts.append(self._render_shape(shape, shape_w, shape_h))
-            if i < len(row.arrows):
-                label = row.arrows[i] or "→"
-                parts.append(f'<span class="arrow-label">{html.escape(label)}</span>')
+        if all_shapes and row.items:
+            # Drawing shapes in a flex row
+            parts: list[str] = ['<div class="shape-row">\n']
+            shape_w, shape_h = 134.0, 57.6
+            for i, shape in enumerate(row.items):
+                parts.append(self._render_shape(shape, shape_w, shape_h))
+                if i < len(row.arrows):
+                    label = row.arrows[i] or "\u2192"
+                    parts.append(f'<span class="arrow-label">{html.escape(label)}</span>')
+            parts.append("\n</div>\n")
+            return "".join(parts)
 
-        parts.append("\n</div>\n")
+        # Mixed content: equal-width flex columns
+        if not row.items:
+            return ""
+        pct = 100 // len(row.items)
+        parts = ['<div style="display:flex;gap:12px">\n']
+        for item in row.items:
+            parts.append(f'<div style="flex:1;min-width:0">\n')
+            parts.append(self._render_item(item))
+            parts.append('</div>\n')
+        parts.append('</div>\n')
         return "".join(parts)
 
     # ------------------------------------------------------------------
@@ -711,7 +770,7 @@ a:hover {{ color: #033E8F; }}
             cells_html: list[str] = []
             for cell in tbl_row.cells:
                 pct = round(cell.width_pct / total_pct * 100, 2)
-                inner = "".join(self._render_item(i) for i in (cell.content or []))
+                inner = self._render_items(cell.content or [])
                 cells_html.append(
                     f'<td style="width:{pct}%;vertical-align:top">'
                     f'{inner or "&nbsp;"}</td>'
@@ -720,7 +779,7 @@ a:hover {{ color: #033E8F; }}
 
         border_attr = ""
         if table.border:
-            border_attr = ' style="border:1px solid #BFBFBF;border-collapse:collapse"'
+            border_attr = f' style="border:1px solid #{DEFAULT_BORDER_COLOR};border-collapse:collapse"'
 
         return (
             f'<table class="layout-table"{border_attr}>\n'

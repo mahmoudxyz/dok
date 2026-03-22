@@ -1,0 +1,258 @@
+// ─────────────────────────────────────────────────────────────
+// new-features-test.dok
+// Testing: triple-quoted strings, spacing, box sizing, line-height
+// ─────────────────────────────────────────────────────────────
+
+doc(font: Calibri, size: 11) {
+
+  header {
+    right { italic(color: gray, size: 9) { "dok — new features test" } }
+  }
+
+  footer {
+    center {
+      p { color(value: gray, size: 9) { "Page " } page-number }
+    }
+  }
+
+  page(margin: normal, paper: a4) {
+
+    banner(fill: #1F3864, accent: gold, color: white) {
+      center { bold(size: 16) { "New Features Test" } }
+    }
+
+    space(size: 12)
+
+    // ── 1. Triple-quoted multiline strings ─────────────────────
+    box(fill: #1F3864, stroke: #1F3864) {
+      bold(size: 13, color: white) { "1. Triple-Quoted Multiline Strings" }
+    }
+
+    space(size: 6)
+
+    p { "Plain paragraph using a triple-quoted string:" }
+
+    p {
+      """
+      This is a long paragraph written using triple quotes.
+      It spans multiple lines in the source file.
+      Leading indentation is automatically stripped.
+      The result is clean flowing text with no extra whitespace.
+      """
+    }
+
+    p { "Code block with triple-quoted string:" }
+
+    code {
+      """
+      def set_rtl(paragraph):
+          pPr = paragraph._p.get_or_add_pPr()
+          bidi = OxmlElement('w:bidi')
+          pPr.insert(0, bidi)
+          jc = OxmlElement('w:jc')
+          jc.set(qn('w:val'), 'right')
+          pPr.append(jc)
+      """
+    }
+
+    p { "Arabic example using triple-quoted string:" }
+
+    box(fill: #F8F9FA, stroke: #CCCCCC, rounded: true) {
+      rtl {
+        p {
+          """
+          هذا مثال على النص العربي
+          مكتوب باستخدام علامات الاقتباس الثلاثية.
+          يتم إزالة المسافة البادئة تلقائياً.
+          """
+        }
+      }
+    }
+
+    space(size: 12)
+
+    // ── 2. Document-wide spacing presets ───────────────────────
+    box(fill: #1F3864, stroke: #1F3864) {
+      bold(size: 13, color: white) { "2. Spacing Presets" }
+    }
+
+    space(size: 6)
+
+    p { bold { "compact" } " — zero paragraph gap, single line spacing:" }
+    p(spacing: compact) { "First paragraph — compact spacing." }
+    p(spacing: compact) { "Second paragraph — notice how close these sit together." }
+    p(spacing: compact) { "Third paragraph — no breathing room at all." }
+
+    space(size: 8)
+
+    p { bold { "tight" } " — small paragraph gap, single line spacing:" }
+    p(spacing: tight) { "First paragraph — tight spacing." }
+    p(spacing: tight) { "Second paragraph — a little room between paragraphs." }
+    p(spacing: tight) { "Third paragraph — still fairly dense." }
+
+    space(size: 8)
+
+    p { bold { "normal" } " — standard Word spacing (default):" }
+    p(spacing: normal) { "First paragraph — normal spacing." }
+    p(spacing: normal) { "Second paragraph — this is what Word produces by default." }
+    p(spacing: normal) { "Third paragraph — comfortable to read." }
+
+    space(size: 8)
+
+    p { bold { "relaxed" } " — generous spacing:" }
+    p(spacing: relaxed) { "First paragraph — relaxed spacing." }
+    p(spacing: relaxed) { "Second paragraph — generous breathing room." }
+    p(spacing: relaxed) { "Third paragraph — easy on the eyes." }
+
+    space(size: 12)
+
+    // ── 3. Line height ─────────────────────────────────────────
+    box(fill: #1F3864, stroke: #1F3864) {
+      bold(size: 13, color: white) { "3. Line Height" }
+    }
+
+    space(size: 6)
+
+    p { bold { "line-height: 10" } " — single spaced:" }
+    p(line-height: 10) {
+      """
+      This paragraph uses single line spacing.
+      Each line sits close to the next.
+      Dense but compact.
+      """
+    }
+
+    space(size: 6)
+
+    p { bold { "line-height: 15" } " — 1.5x spaced:" }
+    p(line-height: 15) {
+      """
+      This paragraph uses one-and-a-half line spacing.
+      More breathing room between each line.
+      Easier to read for longer text.
+      """
+    }
+
+    space(size: 6)
+
+    p { bold { "line-height: 20" } " — double spaced:" }
+    p(line-height: 20) {
+      """
+      This paragraph uses double line spacing.
+      Lots of room between each line.
+      Common for academic submissions and legal documents.
+      """
+    }
+
+    // ── Page break ─────────────────────────────────────────────
+    ---
+
+    // ── 4. Box sizing — width ──────────────────────────────────
+    box(fill: #1F3864, stroke: #1F3864) {
+      bold(size: 13, color: white) { "4. Box Width" }
+    }
+
+    space(size: 6)
+
+    p { bold { "width: 100" } " — full width (default):" }
+    box(fill: #E8F4FD, stroke: #2196F3, rounded: true, width: 100) {
+      p { "This box takes the full page width." }
+    }
+
+    space(size: 6)
+
+    p { bold { "width: 75" } " — three quarters:" }
+    box(fill: #E8F4FD, stroke: #2196F3, rounded: true, width: 75) {
+      p { "This box takes 75% of the page width." }
+    }
+
+    space(size: 6)
+
+    p { bold { "width: 50" } " — half width:" }
+    box(fill: #E8F4FD, stroke: #2196F3, rounded: true, width: 50) {
+      p { "This box takes half the page width." }
+    }
+
+    space(size: 6)
+
+    p { bold { "width: 25" } " — quarter width:" }
+    box(fill: #E8F4FD, stroke: #2196F3, rounded: true, width: 25) {
+      p { "Quarter width." }
+    }
+
+    space(size: 12)
+
+    // ── 5. Box sizing — height ─────────────────────────────────
+    box(fill: #1F3864, stroke: #1F3864) {
+      bold(size: 13, color: white) { "5. Box Height" }
+    }
+
+    space(size: 6)
+
+    p { "Three boxes with same content but different minimum heights:" }
+
+    row {
+      box(fill: #FFF2CC, stroke: #FFC000, rounded: true, height: 60) {
+        center { bold { "height: 60" } }
+      }
+      box(fill: #FFF2CC, stroke: #FFC000, rounded: true, height: 120) {
+        center { bold { "height: 120" } }
+      }
+      box(fill: #FFF2CC, stroke: #FFC000, rounded: true, height: 180) {
+        center { bold { "height: 180" } }
+      }
+    }
+
+    space(size: 12)
+
+    // ── 6. Combined — spacing + sizing + multiline ─────────────
+    box(fill: #1F3864, stroke: #1F3864) {
+      bold(size: 13, color: white) { "6. Combined Example" }
+    }
+
+    space(size: 6)
+
+    p { "A realistic document section using all new features together:" }
+
+    space(size: 6)
+
+    // Half-width info box on the side
+    box(fill: #E8F4FD, stroke: #2196F3, rounded: true, width: 50, height: 80) {
+      bold(color: #1F3864) { "Key Finding" }
+      p(spacing: compact) { "Revenue grew by 42% year over year." }
+    }
+
+    space(size: 8)
+
+    // Relaxed body text with 1.5x line height
+    p(spacing: relaxed, line-height: 15) {
+      """
+      This section demonstrates all new features working together.
+      The paragraph uses relaxed spacing and 1.5x line height,
+      making it comfortable to read even at smaller font sizes.
+      The box above uses width and height constraints to sit
+      neatly beside the content without overwhelming the page.
+      """
+    }
+
+    // Compact code block
+    p { bold { "The dok source for the box above:" } }
+
+    code {
+      """
+      box(fill: #E8F4FD, stroke: #2196F3, rounded: true, width: 50, height: 80) {
+        bold(color: #1F3864) { "Key Finding" }
+        p(spacing: compact) { "Revenue grew by 42% year over year." }
+      }
+      """
+    }
+
+    space(size: 24)
+
+    line(stroke: gray)
+    center {
+      italic(color: gray, size: 9) { "new-features-test.dok — written entirely in dok" }
+    }
+
+  }
+}

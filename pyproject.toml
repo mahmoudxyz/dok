@@ -5,8 +5,33 @@ build-backend = "setuptools.build_meta"
 [project]
 name            = "dok"
 version         = "0.1.0"
+description = "Markup language for AI and humans, compiles to DOCX and HTML"
+readme          = "README.md"
+license         = { text = "MIT" }
 requires-python = ">=3.11"
+authors         = [
+  { name = "Mahmoud Ahmed", email = "hi@mahmoud.ninja" }
+]
+keywords        = [
+  "document", "docx", "word", "html", "pdf",
+  "rtl", "arabic", "ai", "generation", "markup"
+]
+classifiers     = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Text Processing :: Markup",
+  "Topic :: Office/Business :: Office Suites",
+  "Intended Audience :: Developers",
+]
 dependencies    = []
+
+[project.urls]
+Homepage   = "https://github.com/mahmoudxyz/dok"
+Repository = "https://github.com/mahmoudxyz/dok"
+Issues     = "https://github.com/mahmoudxyz/dok/issues"
 
 [project.scripts]
 dok = "dok.__main__:main"

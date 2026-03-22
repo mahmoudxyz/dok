@@ -1,0 +1,16 @@
+doc(font: Calibri, size: 11) {
+  page(margin: normal) {
+
+    banner(fill: #1F3864, accent: gold, color: white) {
+      center { bold(size: 16) { "INVOICE" } }
+    }
+
+    table(border: true, striped: true) {
+      tr { th { "Item" }        th { "Qty" } th { "Price" }  }
+      tr { td { "Consulting" }  td { "3" }   td { "$900" }   }
+      tr { td { "Design" }      td { "1" }   td { "$400" }   }
+    }
+
+    right { bold(size: 14) { "Total: $1,300" } }
+  }
+}

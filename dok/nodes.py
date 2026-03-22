@@ -88,48 +88,6 @@ class ImportNode(Node):
 
 
 # ---------------------------------------------------------------------------
-# Layer classification
-# ---------------------------------------------------------------------------
-
-# Layer 1 — document defaults
-DOC_NODES = {"doc"}
-
-# Layer 2 — physical space
-PAGE_NODES = {"page"}
-
-# Layer 3 — layout / arrangement
-LAYOUT_NODES = {"center", "right", "left", "justify", "rtl", "ltr",
-                "indent", "row", "cols", "col", "float"}
-
-# Layer 4 — run style
-STYLE_NODES  = {"bold", "italic", "underline", "strike", "sup", "sub",
-                "color", "size", "font", "highlight"}
-
-# Layer 5 — content atoms
-BLOCK_NODES  = {"h1", "h2", "h3", "h4", "p", "quote", "code"}
-SHAPE_NODES  = {"box", "circle", "diamond", "chevron", "callout",
-                "badge", "banner", "line"}
-LIST_NODES   = {"ul", "ol", "li"}
-TABLE_NODES  = {"table", "tr", "td", "th"}
-INLINE_NODES = {"link", "img", "page-number"}
-META_NODES   = {"header", "footer", "space"}
-SPECIAL_NODES = {"---"}
-
-CONTENT_NODES = BLOCK_NODES | SHAPE_NODES | SPECIAL_NODES | LIST_NODES | TABLE_NODES | INLINE_NODES | META_NODES
-
-ALL_KNOWN_NODES = DOC_NODES | PAGE_NODES | LAYOUT_NODES | STYLE_NODES | CONTENT_NODES
-
-
-def node_layer(name: str) -> str:
-    if name in DOC_NODES:    return "doc"
-    if name in PAGE_NODES:   return "page"
-    if name in LAYOUT_NODES: return "layout"
-    if name in STYLE_NODES:  return "style"
-    if name in CONTENT_NODES:return "content"
-    return "unknown"
-
-
-# ---------------------------------------------------------------------------
 # DOCX preset geometry names — used by the converter for drawing shapes
 # ---------------------------------------------------------------------------
 

@@ -1,7 +1,7 @@
 // Full RTL document in Arabic
 
 def عنوان-قسم(نص) {
-  bold(size: 14, color: #1F3864) { h2 { نص } }
+  bold(size: 14, color: #0f1011) { h2 { نص } }
   line(stroke: #1F3864)
   space(size: 6)
 }
@@ -19,7 +19,7 @@ doc(font: Calibri, size: 12) {
 
     rtl {
 
-      banner(fill: #1F3864, color: white, accent: gold) {
+      banner(fill: #e3eaf7, color: black) {
         center {
           bold(size: 20) { "جامعة القاهرة" }
           p { "كلية الهندسة — قسم علوم الحاسب" }
@@ -102,16 +102,16 @@ doc(font: Calibri, size: 12) {
           th { "الحالة" }
         }
         tr {
-          td { center {"بكالوريوس علوم الحاسب"} }
+          td { right {"بكالوريوس علوم الحاسب"} }
           td { "٨٥٠" }
           td { bold(color: green) { "٩٢٪" } }
           td { badge(fill: green, color: white) { "معتمد" } }
         }
         tr {
-          td { "ماجستير علوم الحاسب" }
+          td {right{ "ماجستير علوم الحاسب"} }
           td { "١٨٠" }
           td { bold(color: green) { "٨٨٪" } }
-          td { badge(fill: green, color: white) { "معتمد" } }
+          td { right {badge(fill: green, color: white) { "معتمد" } }}
         }
         tr {
           td { "ماجستير الذكاء الاصطناعي" }
@@ -140,8 +140,9 @@ doc(font: Calibri, size: 12) {
 
       callout(fill: #FFF3CD, stroke: #FFC107) {
         bold { "ملاحظة: " }
-        "جميع الأرقام الواردة في هذا التقرير هي أرقام أولية وقابلة للتعديل "
-        "بعد المراجعة النهائية من مجلس القسم."
+
+        right {"جميع الأرقام الواردة في هذا التقرير هي أرقام أولية وقابلة للتعديل "}
+        right { "بعد المراجعة النهائية من مجلس القسم." }
       }
 
       space(size: 24)

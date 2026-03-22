@@ -6,7 +6,7 @@ Fully implemented — the parser consumes these.
 
 Token types:
   NAME      identifier:  doc  box  h1  fill  rounded
-  STRING    quoted text: "hello world"
+  STRING    quoted text: "hello world" or triple-quoted \"\"\"multiline\"\"\"
   NUMBER    integer:     11  14  2
   COLOR     hex color:   #4472C4
   LPAREN    (
@@ -107,24 +107,38 @@ class Lexer:
     # ------------------------------------------------------------------
 
     def _strip_comments(self, source: str) -> str:
-        """Remove // line comments, preserving line numbers."""
-        lines = []
-        for line in source.splitlines():
-            # Only strip comment if // is not inside a string
-            in_string = False
-            i = 0
-            while i < len(line):
-                ch = line[i]
-                if ch == '"' and not in_string:
-                    in_string = True
-                elif ch == '"' and in_string:
-                    in_string = False
-                elif ch == '/' and not in_string and i + 1 < len(line) and line[i+1] == '/':
-                    line = line[:i]
+        """Remove // line comments, preserving line numbers.
+        Respects both single-quoted and triple-quoted strings."""
+        result: list[str] = []
+        i = 0
+        while i < len(source):
+            # Triple-quoted string — pass through verbatim
+            if source[i:i+3] == '"""':
+                end = source.find('"""', i + 3)
+                if end == -1:
+                    result.append(source[i:])
                     break
+                result.append(source[i:end+3])
+                i = end + 3
+            # Single-quoted string — pass through verbatim
+            elif source[i] == '"':
+                j = i + 1
+                while j < len(source) and source[j] != '"':
+                    if source[j] == '\\':
+                        j += 1
+                    j += 1
+                result.append(source[i:j+1])
+                i = j + 1
+            # Line comment
+            elif source[i:i+2] == '//':
+                end = source.find('\n', i)
+                if end == -1:
+                    break
+                i = end  # keep the newline
+            else:
+                result.append(source[i])
                 i += 1
-            lines.append(line)
-        return "\n".join(lines)
+        return "".join(result)
 
     def _scan(self) -> Iterator[Token]:
         source = self._source
@@ -142,7 +156,30 @@ class Lexer:
                 continue
 
             col = pos - line_start + 1
-            m   = self._MASTER.match(source, pos)
+
+            # Triple-quoted string: """..."""
+            if source[pos:pos+3] == '"""':
+                end = source.find('"""', pos + 3)
+                if end == -1:
+                    raise LexError(
+                        "Unterminated triple-quoted string",
+                        loc=SourceLoc(line, col),
+                        hint='Triple-quoted strings must end with """.',
+                    )
+                raw = source[pos+3:end]
+                # Strip common leading indentation
+                raw = _dedent(raw)
+                yield Token("STRING", raw, line, col)
+                # Advance line counter
+                full = source[pos:end+3]
+                newlines = full.count("\n")
+                if newlines:
+                    line += newlines
+                    line_start = pos + full.rfind("\n") + 1
+                pos = end + 3
+                continue
+
+            m = self._MASTER.match(source, pos)
 
             if not m:
                 raise LexError(
@@ -169,3 +206,24 @@ class Lexer:
             pos = m.end()
 
         yield Token("EOF", "", line, pos - line_start + 1)
+
+
+def _dedent(text: str) -> str:
+    """Strip common leading whitespace from a triple-quoted string.
+    Also strips the first line if it's blank (right after opening quotes)
+    and the last line if it's blank (right before closing quotes)."""
+    lines = text.split("\n")
+    # Strip leading blank line
+    if lines and not lines[0].strip():
+        lines = lines[1:]
+    # Strip trailing blank line
+    if lines and not lines[-1].strip():
+        lines = lines[:-1]
+    if not lines:
+        return ""
+    # Find minimum indentation of non-blank lines
+    indents = [len(l) - len(l.lstrip()) for l in lines if l.strip()]
+    if not indents:
+        return "\n".join(lines)
+    min_indent = min(indents)
+    return "\n".join(l[min_indent:] for l in lines)

@@ -8,216 +8,47 @@ Only circle/diamond/chevron use drawing shapes.
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
 from pathlib import Path
-from .nodes   import (Node, ElementNode, TextNode, ArrowNode,
-                       LAYOUT_NODES, STYLE_NODES, SHAPE_PRESETS,
-                       BLOCK_NODES, ALL_KNOWN_NODES)
+from typing import Any
+from .nodes   import (Node, ElementNode, TextNode, ArrowNode, SHAPE_PRESETS)
+from . import registry
 from .context import ParaCtx, RunCtx
-from .colors  import resolve as resolve_color
+from .colors    import resolve as resolve_color
+from .constants import INCH_TO_EMU
+from .models    import (
+    RunModel, ParagraphModel, LineModel, BoxModel, BannerModel, BadgeModel,
+    ShapeModel, RowModel, TableModel, TableRowModel, TableCellModel,
+    DataTableModel, DataTableRowModel, DataTableCellModel,
+    ImageModel, SpacerModel, HeaderModel, FooterModel,
+    PageBreakModel, SectionModel, DocxModel,
+    SPACING_PRESETS,
+)
 
+# Re-export models so existing `from .converter import RunModel` keeps working
+__all__ = [
+    "RunModel", "ParagraphModel", "LineModel", "BoxModel", "BannerModel",
+    "BadgeModel", "ShapeModel", "RowModel", "TableModel", "TableRowModel",
+    "TableCellModel", "DataTableModel", "DataTableRowModel",
+    "DataTableCellModel", "ImageModel", "SpacerModel", "HeaderModel",
+    "FooterModel", "PageBreakModel", "SectionModel", "DocxModel",
+    "SPACING_PRESETS", "Converter",
+]
 
-# ---------------------------------------------------------------------------
-# Model objects
-# ---------------------------------------------------------------------------
+# Backward compat alias
+_SPACING_PRESETS = SPACING_PRESETS
 
-@dataclass
-class RunModel:
-    text:      str
-    bold:      bool       = False
-    italic:    bool       = False
-    underline: bool       = False
-    strike:    bool       = False
-    sup:       bool       = False
-    sub:       bool       = False
-    color:     str | None = None
-    highlight: str | None = None
-    size_pt:   int | None = None
-    font:      str | None = None
-    rtl:       bool       = False
-    shading:   str | None = None
-    hyperlink_url: str | None = None
-    field:     str | None = None   # "PAGE", "NUMPAGES"
-
-
-@dataclass
-class ParagraphModel:
-    runs:         list[RunModel] = field(default_factory=list)
-    style:        str            = "Normal"
-    align:        str            = "left"
-    direction:    str            = "ltr"
-    indent_twips: int            = 0
-    space_before: int            = 0
-    space_after:  int            = 160
-    shading:      str | None     = None
-    border_left:  str | None     = None
-    border_left_sz: int          = 0
-    num_id:       int            = 0      # list numbering ID (0 = none)
-    num_ilvl:     int            = 0      # list nesting level
-
-
-@dataclass
-class LineModel:
-    color: str = "BFBFBF"
-    style: str = "single"
-    thick: bool = False
-    space_before: int = 80
-    space_after:  int = 80
-
-
-@dataclass
-class BoxModel:
-    content:  list              = field(default_factory=list)
-    fill:     str | None        = None
-    stroke:   str | None        = "BFBFBF"
-    rounded:  bool              = False
-    shadow:   bool              = False
-
-
-@dataclass
-class BannerModel:
-    paragraphs: list[ParagraphModel] = field(default_factory=list)
-    fill:       str | None           = None
-    accent:     str | None           = None
-
-
-@dataclass
-class BadgeModel:
-    text:  str
-    fill:  str | None = None
-    color: str | None = None
-    align: str        = "left"
-
-
-@dataclass
-class ShapeModel:
-    preset:       str
-    fill:         str | None
-    stroke:       str | None
-    stroke_style: str                   = "solid"
-    stroke_thick: bool                  = False
-    color:        str | None            = None
-    rounded:      bool                  = False
-    shadow:       bool                  = False
-    inline:       bool                  = True
-    float_side:   str | None            = None
-    paragraphs:   list[ParagraphModel]  = field(default_factory=list)
-
-
-@dataclass
-class RowModel:
-    shapes: list[ShapeModel]    = field(default_factory=list)
-    arrows: list[str | None]    = field(default_factory=list)
-
-
-@dataclass
-class TableModel:
-    rows:   list["TableRowModel"] = field(default_factory=list)
-    border: bool                  = False
-
-
-@dataclass
-class TableRowModel:
-    cells: list["TableCellModel"] = field(default_factory=list)
-
-
-@dataclass
-class TableCellModel:
-    content:   list = field(default_factory=list)
-    width_pct: int  = 50
-
-
-@dataclass
-class DataTableModel:
-    """Visible data table with borders."""
-    rows:    list["DataTableRowModel"] = field(default_factory=list)
-    border:  bool = True
-    striped: bool = False
-
-
-@dataclass
-class DataTableRowModel:
-    cells:     list["DataTableCellModel"] = field(default_factory=list)
-    is_header: bool = False
-
-
-@dataclass
-class DataTableCellModel:
-    content: list = field(default_factory=list)
-    is_th:   bool = False
-    colspan: int  = 1
-
-
-@dataclass
-class ImageModel:
-    src:        str
-    width_emu:  int
-    height_emu: int
-    align:      str = "left"
-
-
-@dataclass
-class SpacerModel:
-    height_twips: int = 200
-
-
-@dataclass
-class HeaderModel:
-    paragraphs: list[ParagraphModel] = field(default_factory=list)
-
-
-@dataclass
-class FooterModel:
-    paragraphs: list[ParagraphModel] = field(default_factory=list)
-
-
-@dataclass
-class PageBreakModel:
-    pass
-
-
-@dataclass
-class SectionModel:
-    margin: str = "normal"
-    paper:  str = "a4"
-    cols:   int = 1
-
-
-@dataclass
-class DocxModel:
-    content:         list              = field(default_factory=list)
-    sections:        list[SectionModel] = field(default_factory=list)
-    default_font:    str               = "Calibri"
-    default_size_pt: int               = 11
-    spacing:         str               = "normal"   # compact | tight | normal | relaxed
-    header:          HeaderModel | None = None
-    footer:          FooterModel | None = None
-    base_dir:        Path | None       = None
-    has_lists:       bool              = False
-
-
-# Spacing presets: (para_after, heading_before_scale, line_spacing)
-# line_spacing is in 240ths of a line (240 = single, 276 = 1.15, 360 = 1.5)
-_SPACING_PRESETS: dict[str, tuple[int, float, int]] = {
-    "compact": (0,   0.4, 240),   # no para gap, single line, tight headings
-    "tight":   (60,  0.6, 240),   # small para gap, single line
-    "normal":  (160, 1.0, 276),   # Word default (8pt after, 1.15 line)
-    "relaxed": (200, 1.2, 312),   # generous spacing
-}
+_INCH_TO_EMU = INCH_TO_EMU  # backward compat alias
 
 
 # ---------------------------------------------------------------------------
 # Converter
 # ---------------------------------------------------------------------------
 
-_INCH_TO_EMU = 914400
-
 class Converter:
 
     def __init__(self) -> None:
         self._model      = DocxModel()
         self._float_next = None
-        self._num_counter = 0   # for unique list numbering IDs
 
     # ------------------------------------------------------------------
     # Public
@@ -243,20 +74,48 @@ class Converter:
         return self._model
 
     # ------------------------------------------------------------------
+    # Sub-converter — DRY helper for nested content
+    # ------------------------------------------------------------------
+
+    def _sub_convert(self, children: list[Node],
+                     para: ParaCtx, run: RunCtx) -> list:
+        """Convert children in a fresh scope. Returns the content list."""
+        sub = Converter()
+        sub._model.default_font    = self._model.default_font
+        sub._model.default_size_pt = self._model.default_size_pt
+        for child in children:
+            sub._walk(child, para, run)
+        return sub._model.content
+
+    def _sub_convert_mixed(self, children: list[Node],
+                           para: ParaCtx, run: RunCtx) -> list:
+        """Like _sub_convert but wraps bare TextNodes as paragraphs."""
+        sub = Converter()
+        sub._model.default_font    = self._model.default_font
+        sub._model.default_size_pt = self._model.default_size_pt
+        for child in children:
+            if isinstance(child, TextNode):
+                sub._model.content.append(ParagraphModel(
+                    runs=[self._make_run(child.text, run)], align=para.align,
+                ))
+            else:
+                sub._walk(child, para, run)
+        return sub._model.content
+
+    # ------------------------------------------------------------------
     # Walker
     # ------------------------------------------------------------------
 
     def _walk(self, node: Node, para: ParaCtx, run: RunCtx) -> None:
         if isinstance(node, TextNode):
-            p = ParagraphModel(
+            self._model.content.append(ParagraphModel(
                 runs=[self._make_run(node.text, run, para)],
                 style=para.style, align=para.align,
                 direction=para.direction,
                 indent_twips=para.indent_twips(),
                 space_before=para.space_before,
                 space_after=para.space_after,
-            )
-            self._model.content.append(p)
+            ))
             return
 
         if isinstance(node, ArrowNode):
@@ -266,90 +125,41 @@ class Converter:
             return
 
         name = node.name
+        elem = registry.get(name)
 
-        # Document structure
-        if name == "doc":
-            self._model.default_font    = str(node.props.get("font", "Calibri"))
-            self._model.default_size_pt = int(node.props.get("size", 11))
+        if not elem:
+            # Unknown element: recurse children (never silently drop)
             for child in node.children:
                 self._walk(child, para, run)
-        elif name == "page":
-            self._handle_page(node, para, run)
+            return
 
-        # Layout
-        elif name == "row":
-            self._handle_row(node, para, run)
-        elif name == "cols":
-            self._handle_cols(node, para, run)
-        elif name == "float":
-            self._float_next = node.props.get("side", "right")
+        cat = elem.category
+
+        # Category-based dispatch
+        if cat == "style":
+            run = self._apply_style_props(node, run)
             for child in node.children:
                 self._walk(child, para, run)
-            self._float_next = None
-        elif name in LAYOUT_NODES:
+        elif cat == "layout" and not elem.handler:
             self._handle_layout(node, para, run)
-
-        # Style
-        elif name in STYLE_NODES:
-            self._handle_style(node, para, run)
-
-        # Special
-        elif name == "---":
-            self._model.content.append(PageBreakModel())
-
-        # Block content
-        elif name in BLOCK_NODES:
+        elif cat == "block":
             self._emit_paragraph(node, para, run)
-
-        # Print-friendly elements
-        elif name == "line":    self._emit_line(node)
-        elif name == "box":     self._emit_box(node, para, run)
-        elif name == "callout": self._emit_callout(node, para, run)
-        elif name == "badge":   self._emit_badge(node, para, run)
-        elif name == "banner":  self._emit_banner(node, para, run)
-
-        # Lists
-        elif name in ("ul", "ol"):
-            self._emit_list(node, para, run)
-
-        # Data tables
-        elif name == "table":
-            self._emit_data_table(node, para, run)
-
-        # Images
-        elif name == "img":
-            self._emit_image(node, para)
-
-        # Links (inline — usually inside p{})
-        elif name == "link":
-            self._emit_link_paragraph(node, para, run)
-
-        # Page number (standalone)
-        elif name == "page-number":
-            self._emit_page_number(para)
-
-        # Spacer
-        elif name == "space":
-            height = int(node.props.get("size", 10))
-            self._model.content.append(SpacerModel(height_twips=height * 20))
-
-        # Header / Footer
-        elif name == "header":
-            self._emit_header(node, para, run)
-        elif name == "footer":
-            self._emit_footer(node, para, run)
-
-        # Drawing shapes (circle, diamond, chevron)
-        elif name in SHAPE_PRESETS:
-            self._emit_drawing_shape(node, para, run)
-
+        elif elem.handler:
+            getattr(self, elem.handler)(node, para, run)
         else:
             for child in node.children:
                 self._walk(child, para, run)
 
     # ------------------------------------------------------------------
-    # Page
+    # Doc / Page / Float / PageBreak / Spacer
     # ------------------------------------------------------------------
+
+    def _handle_doc(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+        self._model.default_font    = str(node.props.get("font", "Calibri"))
+        self._model.default_size_pt = int(node.props.get("size", 11))
+        self._model.spacing         = str(node.props.get("spacing", "normal"))
+        for child in node.children:
+            self._walk(child, para, run)
 
     def _handle_page(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
         section = SectionModel(
@@ -383,11 +193,13 @@ class Converter:
             self._walk(child, para, run)
 
     # ------------------------------------------------------------------
-    # Style
+    # Style — single method for applying style props to RunCtx
     # ------------------------------------------------------------------
 
-    def _handle_style(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+    def _apply_style_props(self, node: ElementNode, run: RunCtx) -> RunCtx:
+        """Apply style from node name and props to the run context."""
         name = node.name
+        # Style from node name (e.g. bold{}, color(value:red){})
         if name == "bold":       run = run.with_bold()
         elif name == "italic":   run = run.with_italic()
         elif name == "underline":run = run.with_underline()
@@ -410,18 +222,28 @@ class Converter:
             v = node.props.get("value")
             if v: run = run.with_highlight(str(v))
 
+        # Inline style props (e.g. bold(color: red, size: 14){})
         if "color" in node.props:
             h = resolve_color(str(node.props["color"]))
             if h: run = run.with_color(h)
-        if "size" in node.props:
-            run = run.with_size(int(node.props["size"]))
-        if "font" in node.props:
-            run = run.with_font(str(node.props["font"]))
-        if node.props.get("bold"):    run = run.with_bold()
-        if node.props.get("italic"):  run = run.with_italic()
+        if "size" in node.props:  run = run.with_size(int(node.props["size"]))
+        if "font" in node.props:  run = run.with_font(str(node.props["font"]))
+        if node.props.get("bold"):   run = run.with_bold()
+        if node.props.get("italic"): run = run.with_italic()
+        return run
 
+    def _handle_float(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+        self._float_next = node.props.get("side", "right")
         for child in node.children:
             self._walk(child, para, run)
+        self._float_next = None
+
+    def _handle_page_break(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+        self._model.content.append(PageBreakModel())
+
+    def _emit_spacer(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+        height = int(node.props.get("size", 10))
+        self._model.content.append(SpacerModel(height_twips=height * 20))
 
     # ------------------------------------------------------------------
     # Row
@@ -432,9 +254,17 @@ class Converter:
         for child in node.children:
             if isinstance(child, ArrowNode):
                 row_model.arrows.append(child.label)
-            elif isinstance(child, ElementNode) and child.name in SHAPE_PRESETS:
-                shape = self._build_drawing_shape(child, para, run)
-                row_model.shapes.append(shape)
+            elif isinstance(child, ElementNode):
+                if child.name in SHAPE_PRESETS:
+                    row_model.items.append(self._build_drawing_shape(child, para, run))
+                else:
+                    content = self._sub_convert_mixed([child], para, run)
+                    row_model.items.extend(content)
+            elif isinstance(child, TextNode):
+                row_model.items.append(ParagraphModel(
+                    runs=[self._make_run(child.text, run, para)],
+                    align=para.align,
+                ))
         self._model.content.append(row_model)
 
     # ------------------------------------------------------------------
@@ -455,12 +285,7 @@ class Converter:
         for i, col_node in enumerate(col_nodes):
             pct  = widths[i] if i < len(widths) else 100 // len(col_nodes)
             cell = TableCellModel(width_pct=pct)
-            sub = Converter()
-            sub._model.default_font    = self._model.default_font
-            sub._model.default_size_pt = self._model.default_size_pt
-            for child in col_node.children:
-                sub._walk(child, para, run)
-            cell.content = sub._model.content
+            cell.content = self._sub_convert(col_node.children, para, run)
             row.cells.append(cell)
         table.rows.append(row)
         self._model.content.append(table)
@@ -484,6 +309,24 @@ class Converter:
         if "size" in node.props:
             run = run.with_size(int(node.props["size"]))
 
+        # Per-paragraph spacing override
+        spacing_name = node.props.get("spacing")
+        line_spacing = 0
+        if spacing_name:
+            from .models import SPACING_PRESETS
+            preset = SPACING_PRESETS.get(spacing_name)
+            if preset:
+                para = para.__class__(
+                    align=para.align, direction=para.direction, indent=para.indent,
+                    style=para.style, space_before=para.space_before,
+                    space_after=preset[0],
+                )
+                line_spacing = preset[2]
+        if "line-height" in node.props:
+            # line-height in tenths: 10 = single, 15 = 1.5x, 20 = double
+            lh = int(node.props["line-height"])
+            line_spacing = lh * 24   # 10 * 24 = 240 twips (single)
+
         runs  = self._collect_runs(node.children, run, para.direction)
         runs  = self._merge_runs(runs)
 
@@ -491,13 +334,14 @@ class Converter:
             runs=runs, style=para.style, align=para.align,
             direction=para.direction, indent_twips=para.indent_twips(),
             space_before=para.space_before, space_after=para.space_after,
+            line_spacing=line_spacing,
         ))
 
     # ------------------------------------------------------------------
     # Line
     # ------------------------------------------------------------------
 
-    def _emit_line(self, node: ElementNode) -> None:
+    def _emit_line(self, node: ElementNode, para: ParaCtx = None, run: RunCtx = None) -> None:
         props = node.props
         stroke = resolve_color(str(props["stroke"])) if "stroke" in props else "BFBFBF"
         style = "dashed" if props.get("dashed") else "single"
@@ -510,108 +354,54 @@ class Converter:
     # Box
     # ------------------------------------------------------------------
 
+    # Per-variant default overrides (convention over configuration)
+    _BOX_DEFAULTS: dict[str, dict[str, Any]] = {
+        "callout": {"fill": "FFF2CC", "stroke": "FFC000"},
+        "badge":   {"fill": "1F3864", "color": "FFFFFF", "inline": True},
+    }
+
     def _emit_box(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
         props = node.props
-        fill   = resolve_color(str(props["fill"]))   if "fill"   in props else None
-        stroke = resolve_color(str(props["stroke"])) if "stroke" in props else "BFBFBF"
-        color  = resolve_color(str(props["color"]))  if "color"  in props else None
+        defaults = self._BOX_DEFAULTS.get(node.name, {})
 
-        box_run = run
-        if color: box_run = box_run.with_color(color)
+        fill    = resolve_color(str(props["fill"]))    if "fill"    in props else defaults.get("fill")
+        stroke  = resolve_color(str(props["stroke"]))  if "stroke"  in props else defaults.get("stroke", "BFBFBF")
+        color   = resolve_color(str(props["color"]))   if "color"   in props else defaults.get("color")
+        accent  = resolve_color(str(props["accent"]))  if "accent"  in props else defaults.get("accent")
+        inline  = bool(props.get("inline", defaults.get("inline", False)))
+        rounded = bool(props.get("rounded", False))
+        shadow  = bool(props.get("shadow", False))
+        width_pct = int(props.get("width", 0))
+        height_pt = int(props.get("height", 0))
 
-        sub = Converter()
-        sub._model.default_font    = self._model.default_font
-        sub._model.default_size_pt = self._model.default_size_pt
-        for child in node.children:
-            if isinstance(child, TextNode):
-                sub._model.content.append(ParagraphModel(
-                    runs=[self._make_run(child.text, box_run)], align=para.align,
-                ))
-            else:
-                sub._walk(child, para, box_run)
+        # Badge: inline text box
+        if inline:
+            text_parts = [c.text for c in node.children if isinstance(c, TextNode)]
+            self._model.content.append(BoxModel(
+                text=" ".join(text_parts), fill=fill, color=color,
+                inline=True, align=para.align,
+            ))
+            return
+
+        # Banner/callout: accent border on paragraphs
+        box_run = run.with_color(color) if color else run
+        content = self._sub_convert_mixed(node.children, para, box_run)
+
+        if accent or node.name in ("callout", "banner"):
+            border_color = accent or stroke
+            for item in content:
+                if isinstance(item, ParagraphModel):
+                    if fill:
+                        item.shading = fill
+                    item.border_left = border_color
+                    item.border_left_sz = 48 if node.name == "banner" else 24
+                    if node.name == "callout":
+                        item.indent_twips = max(item.indent_twips, 180)
 
         self._model.content.append(BoxModel(
-            content=sub._model.content, fill=fill, stroke=stroke,
-            rounded=bool(props.get("rounded", False)),
-            shadow=bool(props.get("shadow", False)),
-        ))
-
-    # ------------------------------------------------------------------
-    # Callout
-    # ------------------------------------------------------------------
-
-    def _emit_callout(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
-        props = node.props
-        fill   = resolve_color(str(props["fill"]))   if "fill"   in props else "FFF2CC"
-        stroke = resolve_color(str(props["stroke"])) if "stroke" in props else "FFC000"
-
-        sub = Converter()
-        sub._model.default_font    = self._model.default_font
-        sub._model.default_size_pt = self._model.default_size_pt
-        for child in node.children:
-            if isinstance(child, TextNode):
-                sub._model.content.append(ParagraphModel(
-                    runs=[self._make_run(child.text, run)],
-                ))
-            else:
-                sub._walk(child, para, run)
-
-        for item in sub._model.content:
-            if isinstance(item, ParagraphModel):
-                item.shading = fill
-                item.border_left = stroke
-                item.border_left_sz = 24
-                item.indent_twips = max(item.indent_twips, 180)
-            self._model.content.append(item)
-
-    # ------------------------------------------------------------------
-    # Badge
-    # ------------------------------------------------------------------
-
-    def _emit_badge(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
-        props = node.props
-        fill  = resolve_color(str(props["fill"]))  if "fill"  in props else "1F3864"
-        color = resolve_color(str(props["color"])) if "color" in props else "FFFFFF"
-        text_parts = [c.text for c in node.children if isinstance(c, TextNode)]
-        self._model.content.append(BadgeModel(
-            text=" ".join(text_parts), fill=fill, color=color, align=para.align,
-        ))
-
-    # ------------------------------------------------------------------
-    # Banner
-    # ------------------------------------------------------------------
-
-    def _emit_banner(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
-        props = node.props
-        fill   = resolve_color(str(props["fill"]))   if "fill"   in props else None
-        accent = resolve_color(str(props["accent"])) if "accent" in props else None
-        color  = resolve_color(str(props["color"]))  if "color"  in props else None
-
-        banner_run = run
-        if color: banner_run = banner_run.with_color(color)
-
-        sub = Converter()
-        sub._model.default_font    = self._model.default_font
-        sub._model.default_size_pt = self._model.default_size_pt
-        for child in node.children:
-            if isinstance(child, TextNode):
-                sub._model.content.append(ParagraphModel(
-                    runs=[self._make_run(child.text, banner_run)], align=para.align,
-                ))
-            else:
-                sub._walk(child, para, banner_run)
-
-        paras = []
-        for item in sub._model.content:
-            if isinstance(item, ParagraphModel):
-                item.shading = fill
-                if accent:
-                    item.border_left = accent
-                    item.border_left_sz = 48
-                paras.append(item)
-
-        self._model.content.append(BannerModel(
-            paragraphs=paras, fill=fill, accent=accent,
+            content=content, fill=fill, stroke=stroke, accent=accent,
+            rounded=rounded, shadow=shadow, color=color,
+            width_pct=width_pct, height_pt=height_pt,
         ))
 
     # ------------------------------------------------------------------
@@ -621,7 +411,6 @@ class Converter:
     def _emit_list(self, node: ElementNode, para: ParaCtx, run: RunCtx,
                    ilvl: int = 0) -> None:
         is_ordered = (node.name == "ol")
-        # num_id: 1 = bullet, 2 = ordered
         num_id = 2 if is_ordered else 1
         self._model.has_lists = True
 
@@ -629,15 +418,10 @@ class Converter:
             if isinstance(child, ElementNode) and child.name == "li":
                 self._emit_list_item(child, para, run, num_id, ilvl)
             elif isinstance(child, ElementNode) and child.name in ("ul", "ol"):
-                # Nested list
                 self._emit_list(child, para, run, ilvl + 1)
 
     def _emit_list_item(self, node: ElementNode, para: ParaCtx, run: RunCtx,
                         num_id: int, ilvl: int) -> None:
-        runs = self._collect_runs(node.children, run, para.direction)
-        runs = self._merge_runs(runs)
-
-        # Check for nested lists among children
         non_list_children = []
         nested_lists = []
         for child in node.children:
@@ -649,14 +433,11 @@ class Converter:
         if non_list_children:
             runs = self._collect_runs(non_list_children, run, para.direction)
             runs = self._merge_runs(runs)
-        else:
-            runs = []
-
-        if runs:
-            self._model.content.append(ParagraphModel(
-                runs=runs, align=para.align, direction=para.direction,
-                num_id=num_id, num_ilvl=ilvl,
-            ))
+            if runs:
+                self._model.content.append(ParagraphModel(
+                    runs=runs, align=para.align, direction=para.direction,
+                    num_id=num_id, num_ilvl=ilvl,
+                ))
 
         for nested in nested_lists:
             self._emit_list(nested, para, run, ilvl + 1)
@@ -681,23 +462,11 @@ class Converter:
                         is_th = (cell_node.name == "th")
                         if is_th: has_th = True
                         colspan = int(cell_node.props.get("colspan", 1))
-
-                        sub = Converter()
-                        sub._model.default_font    = self._model.default_font
-                        sub._model.default_size_pt = self._model.default_size_pt
                         cell_run = run.with_bold() if is_th else run
-                        for cc in cell_node.children:
-                            if isinstance(cc, TextNode):
-                                sub._model.content.append(ParagraphModel(
-                                    runs=[self._make_run(cc.text, cell_run)],
-                                    align=para.align,
-                                ))
-                            else:
-                                sub._walk(cc, para, cell_run)
-
+                        cell_content = self._sub_convert_mixed(
+                            cell_node.children, para, cell_run)
                         row.cells.append(DataTableCellModel(
-                            content=sub._model.content, is_th=is_th,
-                            colspan=colspan,
+                            content=cell_content, is_th=is_th, colspan=colspan,
                         ))
                 row.is_header = has_th
                 table.rows.append(row)
@@ -708,14 +477,13 @@ class Converter:
     # Image
     # ------------------------------------------------------------------
 
-    def _emit_image(self, node: ElementNode, para: ParaCtx) -> None:
+    def _emit_image(self, node: ElementNode, para: ParaCtx = None, run: RunCtx = None) -> None:
         props = node.props
         src   = str(props.get("src", ""))
         width_in  = int(props.get("width", 4))
         height_in = int(props.get("height", 0))
 
         if height_in == 0:
-            # Try to read dimensions from file
             height_in = self._auto_image_height(src, width_in)
 
         self._model.content.append(ImageModel(
@@ -726,7 +494,6 @@ class Converter:
         ))
 
     def _auto_image_height(self, src: str, width_in: int) -> int:
-        """Try to compute proportional height. Falls back to width."""
         try:
             from .image import image_dimensions
             base = self._model.base_dir
@@ -736,7 +503,7 @@ class Converter:
                 return int(width_in * h / w)
         except Exception:
             pass
-        return width_in  # square fallback
+        return width_in
 
     # ------------------------------------------------------------------
     # Hyperlink
@@ -759,38 +526,24 @@ class Converter:
     # Page Number
     # ------------------------------------------------------------------
 
-    def _emit_page_number(self, para: ParaCtx) -> None:
+    def _emit_page_number(self, node: ElementNode = None, para: ParaCtx = None, run: RunCtx = None) -> None:
         self._model.content.append(ParagraphModel(
             runs=[RunModel(text="", field="PAGE")],
             align=para.align,
         ))
 
     # ------------------------------------------------------------------
-    # Spacer — handled inline in _walk
-    # ------------------------------------------------------------------
-
-    # ------------------------------------------------------------------
     # Header / Footer
     # ------------------------------------------------------------------
 
     def _emit_header(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
-        sub = Converter()
-        sub._model.default_font    = self._model.default_font
-        sub._model.default_size_pt = self._model.default_size_pt
-        for child in node.children:
-            sub._walk(child, para, run)
-
-        paras = [c for c in sub._model.content if isinstance(c, ParagraphModel)]
+        content = self._sub_convert(node.children, para, run)
+        paras = [c for c in content if isinstance(c, ParagraphModel)]
         self._model.header = HeaderModel(paragraphs=paras)
 
     def _emit_footer(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
-        sub = Converter()
-        sub._model.default_font    = self._model.default_font
-        sub._model.default_size_pt = self._model.default_size_pt
-        for child in node.children:
-            sub._walk(child, para, run)
-
-        paras = [c for c in sub._model.content if isinstance(c, ParagraphModel)]
+        content = self._sub_convert(node.children, para, run)
+        paras = [c for c in content if isinstance(c, ParagraphModel)]
         self._model.footer = FooterModel(paragraphs=paras)
 
     # ------------------------------------------------------------------
@@ -828,8 +581,7 @@ class Converter:
         )
 
         if node.children:
-            shape_run = run
-            if color: shape_run = shape_run.with_color(color)
+            shape_run = run.with_color(color) if color else run
             sub = Converter()
             sub._model.default_font    = self._model.default_font
             sub._model.default_size_pt = self._model.default_size_pt
@@ -858,7 +610,8 @@ class Converter:
             if isinstance(node, TextNode):
                 result.append(self._make_run(node.text, run, direction=direction))
             elif isinstance(node, ElementNode):
-                if node.name in STYLE_NODES or node.name == "span":
+                elem = registry.get(node.name)
+                if elem and elem.category == "style":
                     child_run = self._apply_style_props(node, run)
                     result.extend(self._collect_runs(node.children, child_run, direction))
                 elif node.name == "link":
@@ -875,38 +628,6 @@ class Converter:
                         if isinstance(child, TextNode):
                             result.append(self._make_run(child.text, run, direction=direction))
         return result
-
-    def _apply_style_props(self, node: ElementNode, run: RunCtx) -> RunCtx:
-        name = node.name
-        if name == "bold":       run = run.with_bold()
-        elif name == "italic":   run = run.with_italic()
-        elif name == "underline":run = run.with_underline()
-        elif name == "strike":   run = run.with_strike()
-        elif name == "sup":      run = run.with_sup()
-        elif name == "sub":      run = run.with_sub()
-        elif name == "color":
-            v = node.props.get("value")
-            if v:
-                h = resolve_color(str(v))
-                if h: run = run.with_color(h)
-        elif name == "size":
-            v = node.props.get("value")
-            if v is not None: run = run.with_size(int(v))
-        elif name == "font":
-            v = node.props.get("value")
-            if v: run = run.with_font(str(v))
-        elif name == "highlight":
-            v = node.props.get("value")
-            if v: run = run.with_highlight(str(v))
-
-        if "color" in node.props:
-            h = resolve_color(str(node.props["color"]))
-            if h: run = run.with_color(h)
-        if "size" in node.props:  run = run.with_size(int(node.props["size"]))
-        if "font" in node.props:  run = run.with_font(str(node.props["font"]))
-        if node.props.get("bold"):   run = run.with_bold()
-        if node.props.get("italic"): run = run.with_italic()
-        return run
 
     def _make_run(self, text: str, run: RunCtx,
                   para: ParaCtx | None = None,
@@ -927,13 +648,7 @@ class Converter:
         merged: list[RunModel] = [runs[0]]
         for r in runs[1:]:
             prev = merged[-1]
-            if (prev.bold == r.bold and prev.italic == r.italic
-                    and prev.underline == r.underline and prev.strike == r.strike
-                    and prev.sup == r.sup and prev.sub == r.sub
-                    and prev.color == r.color and prev.highlight == r.highlight
-                    and prev.size_pt == r.size_pt and prev.font == r.font
-                    and prev.rtl == r.rtl and prev.shading == r.shading
-                    and prev.hyperlink_url == r.hyperlink_url
+            if (prev.style_key() == r.style_key()
                     and prev.field is None and r.field is None):
                 merged[-1] = RunModel(
                     text=prev.text + r.text,

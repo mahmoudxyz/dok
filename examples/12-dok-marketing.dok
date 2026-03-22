@@ -1,0 +1,333 @@
+// ─────────────────────────────────────────────────────────────
+// dok-marketing.dok
+// This entire document was written in dok.
+// No Word. No HTML. No python-docx. Just dok.
+// ─────────────────────────────────────────────────────────────
+
+def section(title) {
+  space(size: 12)
+  box(fill: #1F3864, stroke: #1F3864) {
+    bold(size: 13, color: white) { title }
+  }
+  space(size: 4)
+}
+
+def feature-row(label, description) {
+  row {
+    box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
+      center { bold(color: #1F3864) { label } }
+    }
+    ->
+    box(fill: #F8F9FA, stroke: #CCCCCC, rounded: true) {
+      p { description }
+    }
+  }
+  space(size: 4)
+}
+
+def metric(label, value) {
+  box(fill: #F8F9FA, rounded: true) {
+    center {
+      color(value: gray) { label }
+      bold(size: 22, color: #1F3864) { value }
+    }
+  }
+}
+
+def yes-badge {
+  badge(fill: green, color: white) { "YES" }
+}
+
+def no-badge {
+  badge(fill: red, color: white) { "NO" }
+}
+
+// ─────────────────────────────────────────────────────────────
+
+doc(font: Calibri, size: 11) {
+
+  header {
+    right {
+      italic(color: gray, size: 9) { "This document was written entirely in dok — no Word, no HTML, no code." }
+    }
+  }
+
+  footer {
+    center {
+      p { color(value: gray, size: 9) { "Page " } page-number }
+    }
+  }
+
+  page(margin: normal, paper: a4) {
+
+    // ── Hero ───────────────────────────────────────────────────
+    banner(fill: #1F3864, accent: gold, color: white) {
+      center {
+        bold(size: 22) { "dok" }
+        p { "The output format for AI-generated documents." }
+      }
+    }
+
+    space(size: 8)
+
+    center {
+      italic(color: gray) { "DOCX  ·  PDF  ·  HTML  ·  Email — one source, every format." }
+    }
+
+    space(size: 12)
+
+    callout(fill: #FFF3CD, stroke: #FFC107, tail: top-left) {
+      bold { "You are reading a dok document. " }
+      "Every heading, table, box, banner, and badge on this page was produced from a plain text .dok file. No Word. No InDesign. No python-docx. Just dok compiled to DOCX."
+    }
+
+    // ── Why dok ────────────────────────────────────────────────
+    section(title: "Why dok exists")
+
+    p {
+      "Ask an AI to generate a Word document today and one of three things happens: "
+      bold { "it writes python-docx code that breaks on anything non-trivial, " }
+      "it writes Markdown that loses all formatting on conversion, or "
+      bold { "it hallucinates OOXML directly and produces a corrupt file." }
+    }
+
+    code {
+  """
+  p = doc.add_paragraph()
+  pPr = p._p.get_or_add_pPr()
+  bidi = OxmlElement('w:bidi')
+  pPr.insert(0, bidi)
+  """
+}
+
+    p {
+      "Dok fixes that. The grammar is small enough to fit in a system prompt. "
+      "There is one way to express each thing — no ambiguity for AI to hallucinate into. "
+      "Errors are structured and self-correcting. The AI outputs dok. The compiler handles everything below."
+    }
+
+    // ── Numbers ────────────────────────────────────────────────
+    section(title: "By the numbers")
+
+    row {
+      metric(label: "tokens to describe the full grammar", value: "~200")
+      metric(label: "output formats from one source", value: "4")
+      metric(label: "lines for a complete invoice", value: "12")
+      metric(label: "paid tools it replaces", value: "5+")
+    }
+
+    // ── Features ───────────────────────────────────────────────
+    section(title: "Features")
+
+    feature-row(label: "RTL / Arabic", description: "First-class right-to-left support. One wrapper, everything inside inherits direction. No manual bidi tags. No XML ordering bugs.")
+    feature-row(label: "Context Inheritance", description: "Children inherit parent settings automatically. Set font once at the top, everything below uses it. Change one line, the whole document updates.")
+    feature-row(label: "AI-Ready Grammar", description: "No variables, no loops, no expressions by design. AI generates less, hallucinates less. Compact output means cheaper API calls.")
+    feature-row(label: "Self-Correcting Errors", description: "Every validation error includes the source line and a fix hint readable by AI and humans equally. Broken output automatically retries.")
+    feature-row(label: "Reusable Components", description: "Define once with def, use everywhere. Parameters, children, composition — all supported without a single loop or variable.")
+    feature-row(label: "Multiple Outputs", description: "Same .dok source compiles to DOCX, PDF, HTML, and email. No reformatting. No conversion artifacts.")
+
+    // ── RTL showcase ───────────────────────────────────────────
+    section(title: "RTL — Arabic, Hebrew, and more")
+
+    p { "This is what Arabic text looks like inside a dok document:" }
+
+    box(fill: #F8F9FA, stroke: #CCCCCC, rounded: true) {
+      rtl {
+        h2 { "مرحباً بكم في dok" }
+        p { "هذه الوثيقة بأكملها مكتوبة بصيغة dok. النص العربي محاذاته صحيحة تلقائياً." }
+        p {
+          "يمكن مزج "
+          ltr { bold(color: #1F3864) { "English text" } }
+          " داخل النص العربي بشكل صحيح."
+        }
+        p { bold(color: navy) { "نص غامق." } "  " italic { "نص مائل." } "  " underline { "نص تحته خط." } }
+      }
+    }
+
+    space(size: 8)
+
+    p {
+      "The same paragraph in python-docx requires: "
+      bold(color: red) { "13 lines of XML manipulation" }
+      " and breaks silently if element order is wrong. In dok it is "
+      bold(color: green) { "one wrapper." }
+    }
+
+    // ── Comparison ─────────────────────────────────────────────
+    section(title: "How dok compares")
+
+    table(border: true, striped: true) {
+      tr {
+        th { "Feature" }
+        th { "dok" }
+        th { "python-docx" }
+        th { "Markdown" }
+        th { "LaTeX" }
+      }
+      tr {
+        td { "RTL / Arabic" }
+        td { bold(color: green) { "Native" } }
+        td { bold(color: orange) { "Manual XML" } }
+        td { bold(color: red) { "No" } }
+        td { bold(color: orange) { "Package needed" } }
+      }
+      tr {
+        td { "AI generation" }
+        td { bold(color: green) { "Designed for it" } }
+        td { bold(color: orange) { "Fragile" } }
+        td { bold(color: orange) { "Limited" } }
+        td { bold(color: red) { "Verbose" } }
+      }
+      tr {
+        td { "Output formats" }
+        td { bold(color: green) { "DOCX, PDF, HTML" } }
+        td { bold(color: orange) { "DOCX only" } }
+        td { bold(color: orange) { "With conversion" } }
+        td { bold(color: orange) { "PDF only" } }
+      }
+      tr {
+        td { "Human readable" }
+        td { bold(color: green) { "Yes" } }
+        td { bold(color: red) { "Code only" } }
+        td { bold(color: green) { "Yes" } }
+        td { bold(color: orange) { "Complex" } }
+      }
+      tr {
+        td { "Visual elements" }
+        td { bold(color: green) { "Built in" } }
+        td { bold(color: red) { "Build yourself" } }
+        td { bold(color: red) { "No" } }
+        td { bold(color: red) { "No" } }
+      }
+      tr {
+        td { "Edit existing docs" }
+        td { bold(color: red) { "No" } }
+        td { bold(color: green) { "Yes" } }
+        td { bold(color: red) { "No" } }
+        td { bold(color: red) { "No" } }
+      }
+    }
+
+    // ── Page break ─────────────────────────────────────────────
+    ---
+
+    // ── Replaces paid tools ────────────────────────────────────
+    section(title: "What dok replaces")
+
+    table(border: true, striped: true) {
+      tr {
+        th { "Tool" }
+        th { "What it does" }
+        th { "Price" }
+        th { "dok equivalent" }
+      }
+      tr {
+        td { "DocRaptor" }
+        td { "HTML to PDF API" }
+        td { bold(color: red) { "$15–200/month" } }
+        td { bold(color: green) { "dok.to_pdf()" } }
+      }
+      tr {
+        td { "Carbone" }
+        td { "Template to DOCX/PDF" }
+        td { bold(color: red) { "$49–299/month" } }
+        td { bold(color: green) { "dok.to_docx()" } }
+      }
+      tr {
+        td { "PDFMonkey" }
+        td { "Template to PDF" }
+        td { bold(color: red) { "$19–149/month" } }
+        td { bold(color: green) { "dok.to_pdf()" } }
+      }
+      tr {
+        td { "Mailchimp templates" }
+        td { "Email HTML builder" }
+        td { bold(color: red) { "$13–350/month" } }
+        td { bold(color: green) { "dok.to_html()" } }
+      }
+      tr {
+        td { "Docmosis" }
+        td { "Enterprise doc generation" }
+        td { bold(color: red) { "$150+/month" } }
+        td { bold(color: green) { "All of the above" } }
+      }
+    }
+
+    space(size: 8)
+
+    center {
+      bold(size: 14, color: green) { "dok: open source — $0/month — runs anywhere." }
+    }
+
+    // ── Use cases ──────────────────────────────────────────────
+    section(title: "Use cases")
+
+    row {
+      box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
+        bold(color: #1F3864) { "AI Document Generation" }
+        p { "Natural language prompt to perfect DOCX or PDF. AI outputs dok, compiler handles OOXML." }
+      }
+      box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
+        bold(color: #1F3864) { "Arabic Translation" }
+        p { "Feed any document to AI, get back perfectly formatted RTL translation. No manual fixes." }
+      }
+      box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
+        bold(color: #1F3864) { "Invoice Generation" }
+        p { "Data in, formatted invoice out. DOCX for clients, PDF for records, HTML for email." }
+      }
+    }
+
+    space(size: 8)
+
+    row {
+      box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
+        bold(color: #1F3864) { "Legal Documents" }
+        p { "AI fills templates with case data. Perfect formatting every time, any language." }
+      }
+      box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
+        bold(color: #1F3864) { "Reports and Dashboards" }
+        p { "Data-driven reports with tables, metrics, and charts. One source, multiple delivery formats." }
+      }
+      box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
+        bold(color: #1F3864) { "Email Templates" }
+        p { "Write once in dok, compile to email-safe HTML. Works in Gmail, Outlook, Apple Mail." }
+      }
+    }
+
+    // ── Install ────────────────────────────────────────────────
+    section(title: "Get started in 30 seconds")
+
+    box(fill: #1F3864, rounded: true) {
+      color(value: gold) {
+        p { "pip install dok" }
+        p { "python -m dok document.dok output.docx" }
+        p { "python -m dok document.dok output.pdf" }
+        p { "python -m dok document.dok output.html" }
+      }
+    }
+
+    space(size: 12)
+
+    center {
+      bold(color: gray, size: 10) { "MIT License  ·  Open Source  ·  No API key  ·  No per-document pricing" }
+    }
+
+    space(size: 24)
+
+    // ── Footer signature ───────────────────────────────────────
+    line(stroke: gray)
+
+    center {
+      italic(color: gray, size: 9) {
+        "This document was generated entirely from a .dok source file."
+      }
+      italic(color: gray, size: 9) {
+        "No Word was opened. No HTML was written. No python-docx was touched."
+      }
+      italic(color: gray, size: 9) {
+        "This is dok."
+      }
+    }
+
+  }
+}

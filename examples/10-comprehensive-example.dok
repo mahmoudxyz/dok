@@ -1,0 +1,209 @@
+// ─── Reusable components ───────────────────────────────────────────────────
+
+def metric(label, value, trend_color) {
+  box(fill: #F8F9FA, rounded: true) {
+    p { color(value: gray) { label } }
+    bold(size: 20, color: trend_color) { value }
+  }
+}
+
+def section-header(title) {
+  space(size: 8)
+  bold(size: 13, color: navy) { title }
+  line(stroke: navy)
+  space(size: 4)
+}
+
+// ─── Document ──────────────────────────────────────────────────────────────
+
+doc(font: Calibri, size: 11) {
+
+  // Header and footer on every page
+  header {
+    right { italic(color: gray, size: 9) { "Dok Language — Full Example" } }
+  }
+
+  footer {
+    center {
+      p { color(value: gray, size: 9) { "Page " } page-number }
+    }
+  }
+
+  page(margin: normal, paper: a4) {
+
+    // ── Page banner ──────────────────────────────────────────────────────
+    banner(fill: #1F3864, accent: gold, color: white) {
+      center { bold(size: 18) { "Dok Syntax Showcase" } }
+    }
+
+    space(size: 12)
+
+    // ── Headings ─────────────────────────────────────────────────────────
+    section-header(title: "1. Headings")
+    h1 { "Heading 1" }
+    h2 { "Heading 2" }
+    h3 { "Heading 3" }
+    h4 { "Heading 4" }
+
+    // ── Alignment ────────────────────────────────────────────────────────
+    section-header(title: "2. Alignment")
+    left    { p { "Left aligned (default)" } }
+    center  { p { "Center aligned" } }
+    right   { p { "Right aligned" } }
+    justify { p { "Justified text — this sentence is long enough to show justification stretching across the full line width." } }
+
+    // ── Inline styles ────────────────────────────────────────────────────
+    section-header(title: "3. Inline Styles")
+    p {
+      bold { "Bold" }
+      " · "
+      italic { "Italic" }
+      " · "
+      underline { "Underline" }
+      " · "
+      strike { "Strikethrough" }
+      " · "
+      bold(color: red) { "Bold Red" }
+      " · "
+      italic(color: navy) { "Italic Navy" }
+      " · Normal "
+      sup { "sup" }
+      " and "
+      sub { "sub" }
+    }
+
+    // ── Colors ───────────────────────────────────────────────────────────
+    section-header(title: "4. Colors")
+    p {
+      color(value: red)    { "red  " }
+      color(value: orange) { "orange  " }
+      color(value: green)  { "green  " }
+      color(value: navy)   { "navy  " }
+      color(value: purple) { "purple  " }
+      color(value: #E36C09) { "hex #E36C09  " }
+      highlight(value: yellow) { "highlighted" }
+    }
+
+    // ── Lists ────────────────────────────────────────────────────────────
+    section-header(title: "5. Lists")
+    p { bold { "Unordered:" } }
+    ul {
+      li { "First item" }
+      li { "Second item with " bold { "bold" } " and " italic { "italic" } }
+      li { "Third item" }
+    }
+
+    p { bold { "Ordered:" } }
+    ol {
+      li { "Step one" }
+      li { "Step two" }
+      li { "Step three" }
+    }
+
+    // ── Table ────────────────────────────────────────────────────────────
+    section-header(title: "6. Table")
+    table(border: true, striped: true) {
+      tr {
+        th { "Name" }
+        th { "Role" }
+        th { "Status" }
+      }
+      tr {
+        td { "Alice" }
+        td { "Engineer" }
+        td { bold(color: green) { "Active" } }
+      }
+      tr {
+        td { "Bob" }
+        td { "Designer" }
+        td { bold(color: orange) { "Away" } }
+      }
+      tr {
+        td { "Carol" }
+        td { "Manager" }
+        td { bold(color: red) { "Inactive" } }
+      }
+    }
+
+    // ── Visual blocks ─────────────────────────────────────────────────────
+    section-header(title: "7. Visual Blocks")
+
+    box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
+      bold { "Info Box" }
+      p { "This is a rounded info box with a blue border." }
+    }
+
+    space(size: 8)
+
+    callout(fill: #FFF3CD, stroke: #FFC107, tail: top-left) {
+      bold { "Warning: " }
+      "Always validate your input data before processing."
+    }
+
+    space(size: 8)
+
+    p { "Status: " badge(fill: green, color: white) { "ACTIVE" } "  and  " badge(fill: red, color: white) { "ERROR" } }
+
+    // ── Row with arrows ───────────────────────────────────────────────────
+    section-header(title: "8. Row + Arrows")
+    row {
+      box(fill: #2E74B5, color: white) { center { "Parse" } }   ->
+      box(fill: #70AD47, color: white) { center { "Validate" } } ->
+      box(fill: #ED7D31, color: white) { center { "Convert" } }  ->
+      box(fill: #1F3864, color: white) { center { "Write" } }
+    }
+
+    // ── Metrics row ───────────────────────────────────────────────────────
+    section-header(title: "9. Metrics")
+    row {
+      metric(label: "Revenue",   value: "$4.2M", trend_color: green)
+      metric(label: "Customers", value: "1,840", trend_color: green)
+      metric(label: "Churn",     value: "2.1%",  trend_color: red)
+    }
+
+    // ── Arabic RTL ────────────────────────────────────────────────────────
+    section-header(title: "10. RTL / Arabic")
+    rtl {
+      p { "هذا مثال على النص العربي مع المحاذاة الصحيحة" }
+      p { bold(color: navy) { "نص عربي غامق باللون الكحلي" } }
+      p {
+        "نص عربي "
+        ltr { bold(color: blue) { "English inside RTL" } }
+        " ونص عربي"
+      }
+    }
+
+    // ── Page break → new page ─────────────────────────────────────────────
+    ---
+
+    section-header(title: "11. Two-Column Layout")
+    cols(ratio: 1:1) {
+      col {
+        h3 { "Left Column" }
+        p { "This content sits in the left column of a two-column layout." }
+        ul {
+          li { "Point one" }
+          li { "Point two" }
+        }
+      }
+      col {
+        h3 { "Right Column" }
+        p { "This content sits in the right column." }
+        box(fill: lightblue, rounded: true) {
+          p { "A box inside a column." }
+        }
+      }
+    }
+
+    space(size: 24)
+
+    // ── Signature block ───────────────────────────────────────────────────
+    section-header(title: "12. Signature Block")
+    cols(ratio: 1:1:1) {
+      col { center { line  color(value: gray) { "Author" } } }
+      col { center { line  color(value: gray) { "Reviewer" } } }
+      col { center { line  color(value: gray) { "Approver" } } }
+    }
+
+  }
+}

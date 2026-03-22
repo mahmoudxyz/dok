@@ -28,15 +28,8 @@ The root cause is not the AI. It is that there is no clean, compact format that 
 
 ## How it works
 
-```
-Natural language prompt
-        ↓
-    AI generates .dok        ← ~50 tokens for a complete invoice
-        ↓
-    dok compiler
-        ↓
-  DOCX  ·  HTML  ·  PDF (via LibreOffice)
-```
+![dok workflow](./images/workflow.png)
+
 
 The AI never touches OOXML. It never manages RTL bidi ordering. It never thinks about twips, half-points, or content type manifests. It outputs clean structure. The compiler handles everything below.
 

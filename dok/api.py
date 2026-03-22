@@ -21,6 +21,8 @@ from .resolver    import resolve_imports, resolve
 from .validator   import validate
 from .converter   import Converter
 from .docx_writer import DocxWriter
+from .html_writer import HtmlWriter
+
 
 
 def parse(source: str, *, base_dir: Path | str | None = None) -> ElementNode:
@@ -78,6 +80,23 @@ def to_docx(node: Node, dest: str | Path, *, base_dir: Path | str | None = None)
         model.base_dir = Path(base_dir)
     writer = DocxWriter(model)
     writer.write(dest)
+
+
+def to_html(node: Node, dest: str | Path, *, base_dir: Path | str | None = None) -> None:
+    """
+    Convert a node tree to a .html file at *dest*.
+
+    Args:
+        node:      Root node (from parse() or builder API)
+        dest:      Output file path (created or overwritten)
+        base_dir:  Directory for resolving image paths
+    """
+    model  = Converter().convert(_ensure_list(node))
+    if base_dir is not None:
+        model.base_dir = Path(base_dir)
+    writer = HtmlWriter(model)
+    writer.write(dest)
+
 
 
 def to_bytes(node: Node, *, base_dir: Path | str | None = None) -> bytes:

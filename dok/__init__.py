@@ -17,7 +17,7 @@ from .builder import (
     header, footer, space,
 )
 from .nodes import Node, ElementNode, TextNode, ArrowNode, FunctionDefNode
-from .api import parse, to_docx, to_bytes
+from .api import parse, to_docx, to_bytes, to_html
 from .errors import (
     DokError, LexError, ParseError, ResolveError,
     ValidationError, ValidationErrors,

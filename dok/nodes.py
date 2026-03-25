@@ -88,6 +88,47 @@ class ImportNode(Node):
 
 
 # ---------------------------------------------------------------------------
+# Template nodes — resolved before function expansion
+# ---------------------------------------------------------------------------
+
+@dataclass
+class LetNode(Node):
+    """Variable assignment: let name = value"""
+    name:  str
+    value: Any   # string, int, list
+    loc:   SourceLoc | None = None
+
+    def __repr__(self) -> str:
+        return f"LetNode({self.name!r}, {self.value!r})"
+
+
+@dataclass
+class EachNode(Node):
+    """Loop: each item in items { body }"""
+    var_name:  str
+    iterable:  str        # variable name to iterate
+    index_var: str | None = None  # optional index variable name
+    body:      list[Node] = field(default_factory=list)
+    loc:       SourceLoc | None = None
+
+    def __repr__(self) -> str:
+        return f"EachNode({self.var_name!r} in {self.iterable!r})"
+
+
+@dataclass
+class IfNode(Node):
+    """Conditional: if expr { then } else { else }"""
+    condition:  list  # list of tokens/values representing the expression
+    then_body:  list[Node] = field(default_factory=list)
+    elif_clauses: list[tuple[list, list[Node]]] = field(default_factory=list)
+    else_body:  list[Node] = field(default_factory=list)
+    loc:        SourceLoc | None = None
+
+    def __repr__(self) -> str:
+        return f"IfNode(condition={self.condition!r})"
+
+
+# ---------------------------------------------------------------------------
 # DOCX preset geometry names — used by the converter for drawing shapes
 # ---------------------------------------------------------------------------
 

@@ -35,7 +35,9 @@ from .errors import LexError, SourceLoc
 TOKEN_TYPES = (
     "NAME", "STRING", "NUMBER", "COLOR",
     "LPAREN", "RPAREN", "LBRACE", "RBRACE",
+    "LBRACKET", "RBRACKET",
     "COLON", "COMMA", "ARROW", "PAGEBREAK",
+    "EQUALS", "DOLLAR", "OP",
     "EOF",
 )
 
@@ -74,6 +76,7 @@ class Lexer:
     _PATTERNS = [
         ("PAGEBREAK", r"---"),
         ("ARROW",     r"->"),
+        ("OP",        r"[!=<>]=|[<>+*/]"),   # ==, !=, <=, >=, <, >, +, *, /
         ("COLOR",     r"#[0-9a-fA-F]{3,6}"),
         ("NUMBER",    r"\d+"),
         ("STRING",    r'"(?:[^"\\]|\\.)*"'),
@@ -81,6 +84,10 @@ class Lexer:
         ("RPAREN",    r"\)"),
         ("LBRACE",    r"\{"),
         ("RBRACE",    r"\}"),
+        ("LBRACKET",  r"\["),
+        ("RBRACKET",  r"\]"),
+        ("EQUALS",    r"="),
+        ("DOLLAR",    r"\$"),
         ("COLON",     r":"),
         ("COMMA",     r","),
         ("NAME",      r"[a-zA-Z\u0600-\u06FF\u0750-\u077F\u0590-\u05FF\u00C0-\u024F\u1E00-\u1EFF][a-zA-Z0-9_\u0600-\u06FF\u0750-\u077F\u0590-\u05FF\u00C0-\u024F\u1E00-\u1EFF-]*"),

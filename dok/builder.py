@@ -344,13 +344,22 @@ def arrow(label: str | None = None) -> ArrowNode:
 # Lists
 # ---------------------------------------------------------------------------
 
-def ul(*children: Node | str | None) -> ElementNode:
-    """Unordered (bullet) list. Children should be li() nodes."""
-    return _node("ul", *children)
+def ul(*children: Node | str | None, marker: str | None = None) -> ElementNode:
+    """Unordered (bullet) list. Children should be li() nodes.
+    marker: custom bullet character (e.g. "→", "★", or any emoji)."""
+    props: dict[str, Any] = {}
+    if marker is not None:
+        props["marker"] = marker
+    return _node("ul", *children, **props)
 
-def ol(*children: Node | str | None, start: int = 1) -> ElementNode:
-    """Ordered (numbered) list. Children should be li() nodes."""
-    return _node("ol", *children, start=start)
+def ol(*children: Node | str | None, start: int = 1,
+       marker: str | None = None) -> ElementNode:
+    """Ordered (numbered) list. Children should be li() nodes.
+    marker: 'decimal', 'alpha', or 'roman'."""
+    props: dict[str, Any] = {"start": start}
+    if marker is not None:
+        props["marker"] = marker
+    return _node("ol", *children, **props)
 
 def li(*children: Node | str | None) -> ElementNode:
     """List item inside ul() or ol()."""
@@ -436,3 +445,59 @@ def toc(depth: int = 4, title: str = "Table of Contents") -> ElementNode:
 def ref(to: str, *children, **props) -> ElementNode:
     """Internal reference — link to a bookmark by id."""
     return _node("ref", *children, to=to, **props)
+
+
+# ---------------------------------------------------------------------------
+# Containers — frame, toggle
+# ---------------------------------------------------------------------------
+
+def frame(*children: Node | str | None, **props: Any) -> ElementNode:
+    """
+    Positioned frame (absolute positioning on page).
+
+    dok.frame(
+        dok.p("Sidebar content"),
+        x=400, y=50, width=200, height=150,
+        fill="#F5F5F5", stroke="#333",
+    )
+    """
+    return _node("frame", *children, **props)
+
+def toggle(*children: Node | str | None,
+           title: str = "Details", open: bool = False) -> ElementNode:
+    """
+    Collapsible section (HTML: <details>, DOCX: titled box).
+
+    dok.toggle(
+        dok.p("Hidden content"),
+        title="Click to expand",
+    )
+    """
+    return _node("toggle", *children, title=title, open=open)
+
+
+# ---------------------------------------------------------------------------
+# Form inputs
+# ---------------------------------------------------------------------------
+
+def checkbox(label: str = "", checked: bool = False) -> ElementNode:
+    """Checkbox input. dok.checkbox("I agree", checked=True)"""
+    return _node("checkbox", label=label, checked=checked)
+
+def text_input(placeholder: str = "", value: str = "",
+               width: int = 100) -> ElementNode:
+    """Text input field. dok.text_input(placeholder="Enter name", width=50)"""
+    return _node("text-input", placeholder=placeholder, value=value, width=width)
+
+def dropdown(*options: str, value: str = "") -> ElementNode:
+    """
+    Dropdown selector.
+
+    dok.dropdown("Red", "Blue", "Green", value="Blue")
+    """
+    children = [_node("option", opt, value=opt) for opt in options]
+    return _node("dropdown", *children, value=value)
+
+def option(text: str, value: str | None = None) -> ElementNode:
+    """Dropdown option (used inside dropdown)."""
+    return _node("option", text, value=value or text)

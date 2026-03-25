@@ -29,6 +29,7 @@ dok/
 ├── image.py           # Image dimension reading
 ├── errors.py          # Error types with source locations
 ├── builder.py         # Python builder API (dok.h1(), dok.p(), etc.)
+├── template.py        # Template resolution (let/each/if → node expansion)
 └── cli.py             # CLI argument parsing and dispatch
 ```
 
@@ -44,6 +45,8 @@ source string
   Parser         (parser.py)       Token[] → Node[]
     ↓
   resolve_imports (resolver.py)    inline imported files
+    ↓
+  resolve_templates (template.py)  expand let/each/if, substitute $vars
     ↓
   resolve        (resolver.py)     expand function defs/calls
     ↓
@@ -83,6 +86,7 @@ The AST consists of four node types:
 - **`TextNode`** — holds a string
 - **`ArrowNode`** — arrow connector (`->`) inside rows
 - **`FunctionDefNode`** / **`ImportNode`** — resolved before conversion
+- **`LetNode`** / **`EachNode`** / **`IfNode`** — template nodes, resolved before function expansion
 
 Everything the parser produces and the builder creates is one of these types.
 
@@ -107,15 +111,21 @@ doc
 The converter produces a `DocxModel` containing a flat list of model objects:
 
 - `ParagraphModel` — text paragraph with runs, style, spacing
-- `BoxModel` — bordered/shaded container
+- `BoxModel` — bordered/shaded container (selective borders, nesting-aware)
 - `LineModel` — horizontal rule
-- `DataTableModel` — data table with rows and cells
+- `DataTableModel` — data table with rows, cells, and auto-calculated column widths
 - `TableModel` — layout table (cols/col)
 - `ShapeModel` — drawing shape (circle, diamond, chevron)
 - `RowModel` — horizontal flow of items
 - `ImageModel` — embedded image
 - `SpacerModel` — vertical gap
 - `PageBreakModel` — page break
+- `FrameModel` — positioned floating text box
+- `ToggleModel` — collapsible section (HTML details/summary)
+- `CheckboxModel` — form checkbox
+- `TextInputModel` — form text input
+- `DropdownModel` — form dropdown selector
+- `TocModel` — table of contents
 
 These models are the intermediate representation between the AST and the final output. Both writers consume the same models.
 

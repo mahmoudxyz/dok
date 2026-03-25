@@ -141,7 +141,7 @@ Dok has five layers — each node belongs to exactly one:
   page   → physical space (margin, paper, cols)
   layout → arrangement (center, right, rtl, ltr, indent, row, cols)
   style  → appearance (bold, italic, underline, color, size, font, highlight)
-  content → atoms (h1-h4, p, code, ul/ol/li, table/tr/th/td, box, badge, line, img, link, toc, ref)
+  content → atoms (h1-h4, p, code, ul/ol/li, table/tr/th/td, box, badge, line, img, link, toc, ref, frame, toggle, checkbox, text-input, dropdown)
 
 One syntax rule: name(props) { children }
 Text is always quoted: "like this"
@@ -233,19 +233,36 @@ content →  atoms                (h1-h4, p, code, box, line, table, ul/ol, img,
 
 ---
 
-## What dok deliberately does not do
+## Two ways to use dok
 
-Dok has no variables. No loops. No conditionals. No expressions.
+**Option 1 — Pure dok syntax** with built-in templates: variables, loops, conditionals. Great for AI-generated documents and standalone `.dok` files.
 
-This is not a limitation to work around — it is the design.
+```
+let company = "Acme Corp"
+let items = ["Consulting", "Design", "Support"]
 
-Loops and conditionals live in your programming language, which already does them better than any template engine. Dok's job is to describe what the document looks like. Your language's job is to decide what goes into it.
+doc {
+  h1 "Invoice for $company"
+  each item in items {
+    li "$item"
+  }
+  if count > 2 {
+    p "Bulk discount applied."
+  }
+}
+```
 
-**Dok handles:** structure, appearance, shapes, layout, direction, composition, functions.
+**Option 2 — Python builder API** for full programmatic control. Loops, conditionals, and data transformations live in Python. Dok handles structure and formatting.
 
-**Your language handles:** which sections to include, how many items in a list, what color a status badge should be, whether to show a warning block.
+```python
+doc = dok.doc(
+    dok.h1(f"Invoice for {company}"),
+    dok.ul(*[dok.li(item) for item in items]),
+    dok.p("Bulk discount applied.") if len(items) > 2 else None,
+)
+```
 
-The boundary is clean. The compiler is simple. The output is predictable.
+Both options compile to the same DOCX and HTML output.
 
 ---
 
@@ -259,9 +276,9 @@ The boundary is clean. The compiler is simple. The output is predictable.
 | **Styles** | Bold, italic, underline, strikethrough, superscript, subscript, color, font, size, highlight |
 | **Layout** | Center, right, justify, RTL/LTR, indent, columns, float |
 | **Columns** | `page(cols: 2)` for newspaper-style, `cols(ratio: 2:1, gap: 12)` for side-by-side |
-| **Containers** | Box (fill, stroke, accent, rounded, shadow, width/height), badge |
-| **Lists** | Bullet (ul/li), numbered (ol/li) |
-| **Tables** | Headers, borders, striped, colspan, per-cell align/direction/fill, RTL column order |
+| **Containers** | Box (fill, stroke, accent, rounded, shadow, width/height, selective borders), badge, frame |
+| **Lists** | Bullet (ul/li), numbered (ol/li), custom markers (emoji, arrows, roman numerals) |
+| **Tables** | Headers, borders, striped, colspan, per-cell align/direction/fill, RTL column order, auto column widths |
 | **Images** | PNG/JPEG embedded in DOCX, inline in HTML |
 | **Links** | Clickable hyperlinks, styled content inside links |
 | **Shapes** | Circle, diamond, chevron with arrow connectors |
@@ -272,7 +289,11 @@ The boundary is clean. The compiler is simple. The output is predictable.
 | **Code** | Syntax-preserving blocks, monospace, background, border |
 | **Functions** | Reusable components with parameters and `children` |
 | **Imports** | Split documents into modules with `import "file.dok"` |
-| **Direction** | Full RTL for Arabic/Hebrew — text, tables, column order |
+| **Templates** | Variables (`let`), loops (`each`), conditionals (`if`/`elif`/`else`), `$var` interpolation |
+| **Forms** | Checkbox, text input, dropdown — native in both DOCX and HTML |
+| **Interactivity** | Collapsible sections (`toggle`) — HTML5 details/summary, DOCX titled box |
+| **Positioning** | Positioned frames (`frame`) — absolute placement on page |
+| **Direction** | Full RTL for Arabic/Hebrew — text, tables, lists, column order |
 | **Validation** | Prop types, structure rules, all errors with source location and fix hints |
 
 ---
@@ -290,6 +311,10 @@ name(props)                 // self-closing node
 ->                          // arrow connector (inside row only)
 ---                         // page break
 // comment                  // line comment, stripped before parsing
+let x = "value"             // variable assignment
+each item in list { ... }   // loop
+if expr { ... }             // conditional
+$variable                   // variable interpolation
 ```
 
 Props are always `key: value` pairs or bare flags:
@@ -575,6 +600,31 @@ ol {
 
 Produces native Word bullet and numbered lists with correct indentation.
 
+**Custom list markers:**
+
+```
+ul(marker: "→") {
+  li { "Arrow bullet" }
+  li { "Another arrow bullet" }
+}
+
+ul(marker: "★") {
+  li { "Star marker" }
+}
+
+ol(marker: roman) {
+  li { "Roman numeral I" }
+  li { "Roman numeral II" }
+}
+
+ol(marker: alpha) {
+  li { "Alphabetical a" }
+  li { "Alphabetical b" }
+}
+```
+
+Custom markers work in both DOCX (native numbering definitions) and HTML (CSS list-style / ::before).
+
 **Tables:**
 
 ```
@@ -699,6 +749,11 @@ line(stroke: gray, dashed: true)
 | `shadow` | flag | Drop shadow |
 | `width` | integer | Width as % of page (1–100), default = full |
 | `height` | integer | Minimum height in points, default = auto |
+| `border-top` | boolean | Show top border (default: true) |
+| `border-right` | boolean | Show right border (default: true) |
+| `border-bottom` | boolean | Show bottom border (default: true) |
+| `border-left` | boolean | Show left border (default: true) |
+| `border-width` | integer | Border thickness in pt (default: 1) |
 | `dashed` | flag | Dashed line (line only) |
 | `thick` | flag | Thick line (line only) |
 
@@ -706,6 +761,24 @@ line(stroke: gray, dashed: true)
 box(fill: #E8F4FD, width: 50)   { p { "Half-width box." } }
 box(fill: #FFF2CC, height: 120) { p { "At least 120pt tall." } }
 box(accent: navy, fill: #E8EAF6) { p { "Accent left border." } }
+
+// Selective borders
+box(stroke: #333, border-top: false, border-right: false) {
+  p { "Only left and bottom borders." }
+}
+
+// Left accent with custom width
+box(stroke: #0066CC, border-left: true, border-top: false, border-right: false, border-bottom: false, border-width: 3, fill: #F0F8FF) {
+  p { "Left accent border only." }
+}
+
+// Nested boxes
+box(fill: #E3F2FD, stroke: #1565C0, rounded) {
+  bold { "Outer" }
+  box(fill: white, stroke: #42A5F5, rounded) {
+    p { "Nested inner box." }
+  }
+}
 ```
 
 **Page numbers:**
@@ -850,6 +923,138 @@ Imports resolve relative to the importing file. Circular imports are detected an
 
 ---
 
+## Templates (variables, loops, conditionals)
+
+Dok has a built-in template system for standalone `.dok` files. Templates are resolved before function expansion, so they compose cleanly with functions and imports.
+
+**Variables:**
+
+```
+let company = "Acme Corp"
+let year = 2024
+
+doc {
+  h1 "Report for $company — $year"
+}
+```
+
+Variable values can be strings, numbers, booleans, or lists. `$var` is replaced in text and prop values.
+
+**Loops:**
+
+```
+let fruits = ["Apple", "Banana", "Cherry"]
+
+ul {
+  each fruit in fruits {
+    li "$fruit"
+  }
+}
+```
+
+Loops support an optional index variable:
+
+```
+each item, i in items {
+  p "$i. $item"
+}
+```
+
+**Conditionals:**
+
+```
+let count = 5
+
+if count > 3 {
+  p "Many items"
+} elif count > 1 {
+  p "A few items"
+} else {
+  p "Just one"
+}
+```
+
+Supported operators: `==`, `!=`, `>`, `<`, `>=`, `<=`.
+
+---
+
+## Form inputs
+
+Interactive form fields — native in both DOCX and HTML.
+
+```
+checkbox(label: "I agree to the terms")
+checkbox(checked, label: "Subscribe to newsletter")
+
+text-input(placeholder: "Enter your name", width: 50)
+
+dropdown {
+  option "Engineering"
+  option "Marketing"
+  option "Sales"
+}
+```
+
+| Element | Props |
+|---------|-------|
+| `checkbox` | `checked` (flag), `label` (string) |
+| `text-input` | `placeholder` (string), `value` (string), `width` (int, % of page) |
+| `dropdown` | `value` (string, pre-selected) |
+| `option` | `value` (string) — child of dropdown |
+
+In DOCX: rendered as form fields (checkbox symbols, underlined inputs, shaded dropdowns). In HTML: native `<input>` and `<select>` elements.
+
+---
+
+## Collapsible sections
+
+Toggle sections collapse and expand content.
+
+```
+toggle(title: "Click to expand") {
+  p "This content is hidden by default."
+  ul {
+    li "Detail one"
+    li "Detail two"
+  }
+}
+
+toggle(title: "Open by default", open) {
+  p "This starts expanded."
+}
+```
+
+In HTML: native `<details>/<summary>` — no JavaScript needed. In DOCX: rendered as a titled box (DOCX has no native toggle).
+
+---
+
+## Positioned frames
+
+Absolute positioning on the page. Frames float over content.
+
+```
+frame(x: 400, y: 50, width: 200, height: 150, fill: #F5F5F5, stroke: #333, rounded) {
+  bold "Sidebar"
+  p "Positioned at top-right of the page."
+}
+```
+
+| Prop | Values | Description |
+|------|--------|-------------|
+| `x` | integer (pt) | Horizontal position from left |
+| `y` | integer (pt) | Vertical position from top |
+| `width` | integer (pt) | Frame width |
+| `height` | integer (pt) | Frame height |
+| `fill` | color | Background color |
+| `stroke` | color | Border color |
+| `rounded` | flag | Rounded corners |
+| `shadow` | flag | Drop shadow |
+| `anchor` | `page` `paragraph` `character` | Positioning reference (default: `page`) |
+
+In DOCX: floating text box (`wp:anchor`). In HTML: `position:absolute` div.
+
+---
+
 ## Builder API (Python)
 
 For dynamic content — loops, conditionals, data-driven documents. Your language handles the logic. Dok handles the shape.
@@ -913,7 +1118,9 @@ dok.code("source code")
 
 # Lists
 dok.ul(dok.li("item"), dok.li("item"))
+dok.ul(dok.li("item"), marker="→")       # custom bullet
 dok.ol(dok.li("first"), dok.li("second"), start=1)
+dok.ol(dok.li("first"), marker="roman")   # roman numerals
 dok.li(*children)
 
 # Tables
@@ -937,6 +1144,16 @@ dok.page_number()
 # Navigation
 dok.toc(depth=4, title="Table of Contents")
 dok.ref(to="section-id", "display text")
+
+# Containers
+dok.frame(*children, x=100, y=50, width=200, height=150, fill=...)
+dok.toggle(*children, title="Details", open=False)
+
+# Form inputs
+dok.checkbox(label="I agree", checked=True)
+dok.text_input(placeholder="Enter name", width=50)
+dok.dropdown("Red", "Blue", "Green", value="Blue")
+dok.option("text", value="text")
 
 # Meta
 dok.header(*children)
@@ -980,16 +1197,17 @@ node = dok.parse(source_string, base_dir=Path("./templates"))
 ## Compilation pipeline
 
 ```
-source → lex → parse → resolve_imports → resolve_functions → validate → convert → write
+source → lex → parse → resolve_imports → resolve_templates → resolve_functions → validate → convert → write
 ```
 
 1. **Lexer** — tokenizes the source string
 2. **Parser** — builds an AST of Node trees
 3. **Import resolver** — reads imported files, injects their nodes
-4. **Function resolver** — expands function calls by substituting parameters
-5. **Validator** — checks structure rules, prop types, printable constraints
-6. **Converter** — walks the AST with context inheritance, produces a DocxModel
-7. **Writer** — serializes the DocxModel to OOXML inside a ZIP archive
+4. **Template resolver** — expands `let`/`each`/`if` nodes, substitutes `$variables`
+5. **Function resolver** — expands function calls by substituting parameters
+6. **Validator** — checks structure rules, prop types, printable constraints
+7. **Converter** — walks the AST with context inheritance, produces a DocxModel
+8. **Writer** — serializes the DocxModel to OOXML inside a ZIP archive
 
 All errors carry source location (line, column) and human-readable hints.
 

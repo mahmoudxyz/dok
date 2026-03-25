@@ -22,6 +22,7 @@ from .models    import (
     ImageModel, SpacerModel, HeaderModel, FooterModel,
     PageBreakModel, SectionModel, DocxModel,
     TocModel, TocEntry,
+    CheckboxModel, TextInputModel, DropdownModel, ToggleModel, FrameModel,
     SPACING_PRESETS,
 )
 
@@ -52,6 +53,7 @@ class Converter:
         self._float_next  = None
         self._toc_entries: list[TocEntry] = []
         self._bookmark_id = 0
+        self._available_width_twips: int = 0  # 0 = use page width
 
     # ------------------------------------------------------------------
     # Public
@@ -95,21 +97,25 @@ class Converter:
     # ------------------------------------------------------------------
 
     def _sub_convert(self, children: list[Node],
-                     para: ParaCtx, run: RunCtx) -> list:
+                     para: ParaCtx, run: RunCtx,
+                     available_width: int = 0) -> list:
         """Convert children in a fresh scope. Returns the content list."""
         sub = Converter()
         sub._model.default_font    = self._model.default_font
         sub._model.default_size_pt = self._model.default_size_pt
+        sub._available_width_twips = available_width or self._available_width_twips
         for child in children:
             sub._walk(child, para, run)
         return sub._model.content
 
     def _sub_convert_mixed(self, children: list[Node],
-                           para: ParaCtx, run: RunCtx) -> list:
+                           para: ParaCtx, run: RunCtx,
+                           available_width: int = 0) -> list:
         """Like _sub_convert but wraps bare TextNodes as paragraphs."""
         sub = Converter()
         sub._model.default_font    = self._model.default_font
         sub._model.default_size_pt = self._model.default_size_pt
+        sub._available_width_twips = available_width or self._available_width_twips
         for child in children:
             if isinstance(child, TextNode):
                 sub._model.content.append(ParagraphModel(
@@ -371,7 +377,19 @@ class Converter:
             if col_align:
                 col_para = para.with_align(str(col_align))
 
-            cell.content = self._sub_convert(col_node.children, col_para, run)
+            # Calculate actual cell width in twips for child width propagation
+            from .constants import content_width_twip, MARGIN_PRESETS
+            section = self._model.sections[-1] if self._model.sections else SectionModel()
+            cw = content_width_twip(section.paper,
+                                    margins=section.resolved_margins(MARGIN_PRESETS))
+            total_gap = gap_pt * 20 * max(0, n_cols - 1)
+            usable_w = cw - total_gap
+            total_pct_sum = sum(widths)
+            cell_w_twips = int(usable_w * pct / total_pct_sum) if total_pct_sum else usable_w // n_cols
+            cell_inner = max(0, cell_w_twips - col_padding * 20 * 2 - padding_pt * 20 * 2)
+
+            cell.content = self._sub_convert(col_node.children, col_para, run,
+                                             available_width=cell_inner)
             row.cells.append(cell)
         table.rows.append(row)
         self._model.content.append(table)
@@ -474,7 +492,7 @@ class Converter:
         inline  = bool(props.get("inline", defaults.get("inline", False)))
         rounded = bool(props.get("rounded", False))
         shadow  = bool(props.get("shadow", False))
-        width_pct = int(props.get("width", 0))
+        width_pct = min(int(props.get("width", 0)), 100)  # cap at 100%
         height_pt = int(props.get("height", 0))
 
         # Badge: inline text box
@@ -486,14 +504,33 @@ class Converter:
             ))
             return
 
+        # Compute available width for child elements
+        parent_width = self._available_width_twips
+        # Box padding: 160 twips left + 160 twips right = 320 twips
+        box_padding = 320
+        inner_width = max(0, (parent_width - box_padding)) if parent_width else 0
+
         # All boxes (including callout/banner) use the same rendering path
         box_run = run.with_color(color) if color else run
-        content = self._sub_convert_mixed(node.children, para, box_run)
+        content = self._sub_convert_mixed(node.children, para, box_run,
+                                          available_width=inner_width)
+
+        def _bool_prop(key: str, default: bool = True) -> bool:
+            v = props.get(key, default)
+            if isinstance(v, str):
+                return v.lower() not in ("false", "no", "0", "off")
+            return bool(v)
 
         self._model.content.append(BoxModel(
             content=content, fill=fill, stroke=stroke, accent=accent,
             rounded=rounded, shadow=shadow, color=color,
             width_pct=width_pct, height_pt=height_pt,
+            max_width_twips=parent_width,
+            border_top=_bool_prop("border-top"),
+            border_right=_bool_prop("border-right"),
+            border_bottom=_bool_prop("border-bottom"),
+            border_left=_bool_prop("border-left"),
+            border_width=int(props.get("border-width", 1)),
         ))
 
     # ------------------------------------------------------------------
@@ -503,17 +540,38 @@ class Converter:
     def _emit_list(self, node: ElementNode, para: ParaCtx, run: RunCtx,
                    ilvl: int = 0) -> None:
         is_ordered = (node.name == "ol")
-        num_id = 2 if is_ordered else 1
+        marker = node.props.get("marker")
+        list_format = None
+
+        if is_ordered:
+            num_id = 2
+            if marker:
+                list_format = str(marker)  # "decimal", "alpha", "roman"
+        else:
+            num_id = 1
+
+        # Custom bullet marker uses num_id=3+
+        custom_marker = None
+        if not is_ordered and marker:
+            custom_marker = str(marker)
+            if custom_marker not in self._model.custom_markers:
+                self._model.custom_markers.append(custom_marker)
+            num_id = 3 + self._model.custom_markers.index(custom_marker)
+
         self._model.has_lists = True
 
         for child in node.children:
             if isinstance(child, ElementNode) and child.name == "li":
-                self._emit_list_item(child, para, run, num_id, ilvl)
+                self._emit_list_item(child, para, run, num_id, ilvl,
+                                     custom_marker=custom_marker,
+                                     list_format=list_format)
             elif isinstance(child, ElementNode) and child.name in ("ul", "ol"):
                 self._emit_list(child, para, run, ilvl + 1)
 
     def _emit_list_item(self, node: ElementNode, para: ParaCtx, run: RunCtx,
-                        num_id: int, ilvl: int) -> None:
+                        num_id: int, ilvl: int,
+                        custom_marker: str | None = None,
+                        list_format: str | None = None) -> None:
         non_list_children = []
         nested_lists = []
         for child in node.children:
@@ -529,6 +587,8 @@ class Converter:
                 self._model.content.append(ParagraphModel(
                     runs=runs, align=para.align, direction=para.direction,
                     num_id=num_id, num_ilvl=ilvl,
+                    list_marker=custom_marker,
+                    list_format=list_format,
                 ))
 
         for nested in nested_lists:
@@ -582,7 +642,81 @@ class Converter:
                 row.is_header = has_th
                 table.rows.append(row)
 
+        # Auto-calculate column widths based on content length
+        table.col_widths = self._calc_table_col_widths(table)
+
         self._model.content.append(table)
+
+    @staticmethod
+    def _text_length(content: list) -> int:
+        """Estimate text length from a list of model items."""
+        total = 0
+        for item in content:
+            if isinstance(item, ParagraphModel):
+                for r in item.runs:
+                    total += len(r.text) if r.text else 0
+        return total
+
+    @staticmethod
+    def _calc_table_col_widths(table: DataTableModel) -> list[int]:
+        """Calculate proportional column widths (pct) based on content length."""
+        if not table.rows:
+            return []
+
+        max_cols = max((sum(c.colspan for c in r.cells) for r in table.rows), default=1)
+        if max_cols <= 1:
+            return [100]
+
+        # Accumulate character counts per logical column
+        col_chars: list[float] = [0.0] * max_cols
+        for row in table.rows:
+            col_idx = 0
+            for cell in row.cells:
+                length = Converter._text_length(cell.content)
+                # Headers weigh slightly more
+                weight = 1.2 if cell.is_th else 1.0
+                chars = length * weight
+                # Spread across spanned columns
+                per_col = chars / cell.colspan
+                for i in range(cell.colspan):
+                    if col_idx + i < max_cols:
+                        col_chars[col_idx + i] += per_col
+                col_idx += cell.colspan
+
+        total = sum(col_chars)
+        if total == 0:
+            # No text content — equal widths
+            return [100 // max_cols] * max_cols
+
+        # Calculate proportional percentages with minimum 8% per column
+        MIN_PCT = 8
+        raw = [c / total * 100 for c in col_chars]
+
+        # Clamp columns below minimum, redistribute
+        widths: list[int] = []
+        clamped_total = 0
+        free_total = 0.0
+        for r in raw:
+            if r < MIN_PCT:
+                clamped_total += MIN_PCT
+            else:
+                free_total += r
+
+        remaining = 100 - clamped_total
+        for r in raw:
+            if r < MIN_PCT:
+                widths.append(MIN_PCT)
+            else:
+                widths.append(max(MIN_PCT, int(r / free_total * remaining))) if free_total > 0 else widths.append(MIN_PCT)
+
+        # Adjust rounding so widths sum to 100
+        diff = 100 - sum(widths)
+        if diff != 0 and widths:
+            # Add/subtract from the widest column
+            widest = widths.index(max(widths))
+            widths[widest] += diff
+
+        return widths
 
     # ------------------------------------------------------------------
     # Image
@@ -656,6 +790,79 @@ class Converter:
         content = self._sub_convert(node.children, para, run)
         paras = [c for c in content if isinstance(c, ParagraphModel)]
         self._model.footer = FooterModel(paragraphs=paras)
+
+    # ------------------------------------------------------------------
+    # Form fields
+    # ------------------------------------------------------------------
+
+    def _emit_frame(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+        props = node.props
+        x_pt = int(props.get("x", 0))
+        y_pt = int(props.get("y", 0))
+        w_pt = int(props.get("width", 200))
+        h_pt = int(props.get("height", 100))
+        fill = resolve_color(str(props["fill"])) if "fill" in props else None
+        stroke = resolve_color(str(props["stroke"])) if "stroke" in props else None
+        content = self._sub_convert_mixed(node.children, para, run)
+        self._model.content.append(FrameModel(
+            x_twips=x_pt * 20, y_twips=y_pt * 20,
+            width_twips=w_pt * 20, height_twips=h_pt * 20,
+            fill=fill, stroke=stroke,
+            rounded=bool(props.get("rounded", False)),
+            shadow=bool(props.get("shadow", False)),
+            anchor=str(props.get("anchor", "page")),
+            content=content,
+        ))
+
+    def _emit_toggle(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+        props = node.props
+        title = str(props.get("title", "Details"))
+        is_open = props.get("open", False)
+        if isinstance(is_open, str):
+            is_open = is_open.lower() not in ("false", "no", "0", "off")
+        content = self._sub_convert_mixed(node.children, para, run)
+        self._model.content.append(ToggleModel(
+            title=title, open=bool(is_open), content=content,
+        ))
+
+    def _emit_checkbox(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+        props = node.props
+        checked = props.get("checked", False)
+        if isinstance(checked, str):
+            checked = checked.lower() not in ("false", "no", "0", "off")
+        label = str(props.get("label", ""))
+        if not label:
+            # Get label from child text
+            for child in node.children:
+                if isinstance(child, TextNode):
+                    label = child.text
+                    break
+        self._model.content.append(CheckboxModel(checked=bool(checked), label=label))
+
+    def _emit_text_input(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+        props = node.props
+        self._model.content.append(TextInputModel(
+            placeholder=str(props.get("placeholder", "")),
+            value=str(props.get("value", "")),
+            width_pct=int(props.get("width", 100)),
+        ))
+
+    def _emit_dropdown(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+        options: list[str] = []
+        for child in node.children:
+            if isinstance(child, ElementNode) and child.name == "option":
+                # Get option text from children or value prop
+                opt_text = str(child.props.get("value", ""))
+                if not opt_text:
+                    for gc in child.children:
+                        if isinstance(gc, TextNode):
+                            opt_text = gc.text
+                            break
+                options.append(opt_text)
+        self._model.content.append(DropdownModel(
+            options=options,
+            value=str(node.props.get("value", "")),
+        ))
 
     # ------------------------------------------------------------------
     # Drawing shapes (circle, diamond, chevron)

@@ -18,6 +18,7 @@ from .nodes       import Node, ElementNode
 from .lexer       import Lexer
 from .parser      import Parser
 from .resolver    import resolve_imports, resolve
+from .template    import resolve_templates
 from .validator   import validate
 from .converter   import Converter
 from .docx_writer import DocxWriter
@@ -50,6 +51,9 @@ def parse(source: str, *, base_dir: Path | str | None = None) -> ElementNode:
     # Resolve imports (must come before function resolution)
     if base_dir is not None:
         nodes = resolve_imports(nodes, Path(base_dir))
+
+    # Expand template constructs (let/each/if)
+    nodes = resolve_templates(nodes)
 
     # Expand function definitions and calls
     nodes = resolve(nodes)

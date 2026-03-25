@@ -15,6 +15,8 @@ from .builder import (
     table, tr, td, th,
     img, link, page_number,
     header, footer, space, toc, ref,
+    frame, toggle,
+    checkbox, text_input, dropdown, option,
 )
 from .nodes import Node, ElementNode, TextNode, ArrowNode, FunctionDefNode
 from .api import parse, to_docx, to_bytes, to_html

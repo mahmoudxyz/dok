@@ -1,0 +1,96 @@
+doc(font: "Calibri", size: 11) {
+
+  h1 "New Features Showcase"
+
+  h2 "Selective Borders"
+  box(stroke: #333333, border-top: false, border-right: false, border-width: 2) {
+    p "This box only has left and bottom borders with 2pt thickness."
+  }
+  space(size: 6)
+  box(stroke: #0066CC, border-left: true, border-top: false, border-right: false, border-bottom: false, border-width: 3, fill: #F0F8FF) {
+    p "Left accent border only — great for callouts."
+  }
+
+  space(size: 12)
+
+  h2 "Smart Table Column Widths"
+  table(border) {
+    tr {
+      th "ID"
+      th "Name"
+      th "Description"
+      th "Status"
+    }
+    tr {
+      td "1"
+      td "Alice"
+      td "Lead developer responsible for architecture design and code reviews across all backend services"
+      td "Active"
+    }
+    tr {
+      td "2"
+      td "Bob"
+      td "Frontend specialist"
+      td "On Leave"
+    }
+  }
+
+  space(size: 12)
+
+  h2 "Custom List Markers"
+  ul(marker: "→") {
+    li "Arrow-pointed item one"
+    li "Arrow-pointed item two"
+    li "Arrow-pointed item three"
+  }
+  ol(marker: roman) {
+    li "First item in Roman numerals"
+    li "Second item in Roman numerals"
+    li "Third item in Roman numerals"
+  }
+
+  space(size: 12)
+
+  h2 "Form Inputs"
+  p "Please fill out the following:"
+  checkbox(label: "I agree to the terms and conditions")
+  checkbox(checked, label: "Subscribe to newsletter")
+  text-input(placeholder: "Enter your full name", width: 50)
+  dropdown {
+    option "Select a department"
+    option "Engineering"
+    option "Marketing"
+    option "Sales"
+  }
+
+  space(size: 12)
+
+  h2 "Collapsible Section"
+  toggle(title: "Click to view additional details") {
+    p "This content is hidden by default in HTML."
+    p "In DOCX, it renders as a titled section."
+    ul {
+      li "Detail point one"
+      li "Detail point two"
+    }
+  }
+
+  space(size: 12)
+
+  h2 "Positioned Frame"
+  frame(x: 350, y: 50, width: 180, height: 100, fill: #FFFDE7, stroke: #FFC107, rounded) {
+    bold "Quick Note"
+    p "This frame is positioned absolutely on the page."
+  }
+
+  space(size: 12)
+
+  h2 "Nested Boxes"
+  box(fill: #E3F2FD, stroke: #1565C0, rounded) {
+    bold "Outer Box"
+    p "This box contains another box inside it."
+    box(fill: #FFFFFF, stroke: #42A5F5, rounded) {
+      p "Inner nested box with its own styling."
+    }
+  }
+}

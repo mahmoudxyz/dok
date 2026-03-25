@@ -19,7 +19,7 @@ doc(font: Calibri, size: 11) {
 
   page(margin: normal) {
 
-    banner(fill: #1F3864, color: white) {
+    box(fill: #e6ecf8, color: black) {
       center {
         bold(size: 20) { "Quarterly Sales Report" }
         p { "Q4 2024 — October to December" }

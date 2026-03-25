@@ -1,132 +1,92 @@
-// Award / completion certificate
-
-def ornamental-line() {
-  center {
-    color(value: #C9A84C) {
-      bold { p { "* * * * * * * * * * * * * * * * * * * * *" } }
-    }
-  }
-}
-
-doc(font: Georgia, size: 12) {
+doc(font: "Times New Roman", size: 12, spacing: relaxed) {
 
   page(margin: wide) {
 
-    space(size: 36)
+    space(size: 40)
 
-    ornamental-line
-
-    space(size: 24)
-
+    // Institution name (small, elegant)
     center {
-      color(value: #1F3864, size: 14) {
-        p { "THE BOARD OF DIRECTORS" }
-      }
-      bold(size: 28, color: #1F3864) {
-        p { "GLOBAL TECH INSTITUTE" }
-      }
-      italic(color: gray) {
-        p { "Excellence in Technology Education Since 1995" }
-      }
+      italic(size: 11, color: gray) { "Institute of Advanced Studies" }
     }
 
-    space(size: 24)
+    space(size: 30)
+
+    // Title
+    center {
+      bold(size: 20) { "CERTIFICATE" }
+    }
+
+    space(size: 25)
 
     center {
-      italic(size: 14, color: gray) { p { "hereby certifies that" } }
+      p { "This certifies that" }
+    }
+
+    space(size: 12)
+
+    // Name (main focus)
+    center {
+      bold(size: 26) { "John Doe" }
     }
 
     space(size: 12)
 
     center {
-      box(fill: #F8F6F0, stroke: #C9A84C, rounded: true) {
-        center {
-          bold(size: 24, color: #1F3864) { "Dr. Ahmad Hassan Al-Rashidi" }
-        }
-      }
+      p { "has successfully completed the program" }
     }
 
-    space(size: 12)
+    space(size: 10)
 
     center {
-      italic(size: 14, color: gray) {
-        p { "has successfully completed the requirements for" }
-      }
+      italic(size: 15) { "Advanced Problem Solving & System Design" }
     }
 
-    space(size: 8)
-
-    center {
-      bold(size: 18, color: #1F3864) {
-        p { "Advanced Certification in Cloud Architecture" }
-      }
-      p { "with specialization in " bold { "Distributed Systems Design" } }
-    }
-
-    space(size: 8)
+    space(size: 25)
 
     center {
       p {
-        "Awarded with "
-        bold(color: #C9A84C) { "Distinction" }
-        " on this day, the 15th of December, 2024"
+        "with distinction, demonstrating strong analytical ability "
+        "and professional competence."
       }
     }
 
-    space(size: 12)
+    space(size: 60)
 
-    // Credential details
-    box(fill: #FAFAFA, rounded: true) {
-      cols(ratio: 1:1:1) {
-        col {
-          center {
-            bold(color: gray, size: 9) { p { "CREDENTIAL ID" } }
-            p { "GTI-2024-CA-00847" }
-          }
-        }
-        col {
-          center {
-            bold(color: gray, size: 9) { p { "HOURS COMPLETED" } }
-            p { "240 Hours" }
-          }
-        }
-        col {
-          center {
-            bold(color: gray, size: 9) { p { "VALID THROUGH" } }
-            p { "December 2027" }
-          }
-        }
-      }
-    }
+    // Clean signature layout
+    cols(ratio: 1:1:1) {
 
-    space(size: 24)
-
-    // Signatures
-    cols(ratio: 1:1) {
       col {
         center {
           line
-          bold { p { "Dr. Elena Vasquez" } }
-          italic(color: gray) { p { "President" } }
+          space(size: 6)
+          p { "Director" }
         }
       }
+
       col {
         center {
           line
-          bold { p { "Prof. Kenji Tanaka" } }
-          italic(color: gray) { p { "Director of Certification" } }
+          space(size: 6)
+          p { "Instructor" }
         }
       }
+
+      col {
+        center {
+          line
+          space(size: 6)
+          p { "Date" }
+        }
+      }
+
     }
 
-    space(size: 24)
-
-    ornamental-line
-
-    space(size: 8)
+    space(size: 30)
 
     center {
-      badge(fill: #1F3864, color: white) { "Verified Digital Certificate" }
+      italic(size: 10, color: gray) {
+        "Official document — no signature required if digitally issued"
+      }
     }
 
   }

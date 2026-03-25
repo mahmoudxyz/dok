@@ -84,8 +84,9 @@ def build_settings_xml(*, hyphenate: bool = False) -> str:
 # Numbering XML (bullet + ordered lists)
 # ---------------------------------------------------------------------------
 
-def build_numbering_xml() -> str:
-    """Build numbering.xml with bullet (numId=1) and ordered (numId=2) lists."""
+def build_numbering_xml(custom_markers: list[str] | None = None) -> str:
+    """Build numbering.xml with bullet (numId=1), ordered (numId=2),
+    and custom marker lists (numId=3+)."""
     w = XmlWriter()
     w.declaration()
     w.open("w:numbering", {"xmlns:w": W_NS})
@@ -128,6 +129,28 @@ def build_numbering_xml() -> str:
         w.close("w:lvl")
     w.close("w:abstractNum")
 
+    # Abstract 2+: custom marker lists
+    for idx, marker_char in enumerate(custom_markers or []):
+        abstract_id = str(idx + 2)
+        w.open("w:abstractNum", {"w:abstractNumId": abstract_id})
+        w.tag("w:multiLevelType", {"w:val": "hybridMultilevel"})
+        for lvl in range(3):
+            w.open("w:lvl", {"w:ilvl": str(lvl)})
+            w.tag("w:start", {"w:val": "1"})
+            w.tag("w:numFmt", {"w:val": "bullet"})
+            w.tag("w:lvlText", {"w:val": marker_char})
+            w.tag("w:lvlJc", {"w:val": "left"})
+            w.open("w:pPr")
+            indent = 720 * (lvl + 1)
+            w.tag("w:ind", {"w:left": str(indent), "w:hanging": "360"})
+            w.close("w:pPr")
+            w.open("w:rPr")
+            w.tag("w:rFonts", {"w:ascii": "Calibri", "w:hAnsi": "Calibri",
+                                "w:cs": "Calibri", "w:hint": "default"})
+            w.close("w:rPr")
+            w.close("w:lvl")
+        w.close("w:abstractNum")
+
     # Concrete instances
     w.open("w:num", {"w:numId": "1"})
     w.tag("w:abstractNumId", {"w:val": "0"})
@@ -135,6 +158,12 @@ def build_numbering_xml() -> str:
     w.open("w:num", {"w:numId": "2"})
     w.tag("w:abstractNumId", {"w:val": "1"})
     w.close("w:num")
+    for idx in range(len(custom_markers or [])):
+        num_id = str(idx + 3)
+        abstract_id = str(idx + 2)
+        w.open("w:num", {"w:numId": num_id})
+        w.tag("w:abstractNumId", {"w:val": abstract_id})
+        w.close("w:num")
 
     w.close("w:numbering")
     return w.getvalue()

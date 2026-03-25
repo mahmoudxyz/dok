@@ -12,7 +12,10 @@ Supports function definitions:
 from __future__ import annotations
 from typing import Any
 from .lexer import Token
-from .nodes import Node, ElementNode, TextNode, ArrowNode, FunctionDefNode, ImportNode
+from .nodes import (
+    Node, ElementNode, TextNode, ArrowNode, FunctionDefNode, ImportNode,
+    LetNode, EachNode, IfNode,
+)
 from .errors import ParseError, SourceLoc
 
 
@@ -47,6 +50,12 @@ class Parser:
                 return self._parse_function_def()
             if tok_val == "import":
                 return self._parse_import()
+            if tok_val == "let":
+                return self._parse_let()
+            if tok_val == "each":
+                return self._parse_each()
+            if tok_val == "if":
+                return self._parse_if()
             return self._parse_element()
 
         if self._peek_type("STRING"):
@@ -65,6 +74,151 @@ class Parser:
             tok,
             hint="Expected an element name, quoted string, or ->.",
         )
+
+    # ------------------------------------------------------------------
+    # Template constructs
+    # ------------------------------------------------------------------
+
+    def _parse_let(self) -> LetNode:
+        """Parse: let name = value  or  let name = [item1, item2, ...]"""
+        let_tok = self._consume("NAME")  # consume "let"
+        if not self._peek_type("NAME"):
+            raise self._error("Expected variable name after 'let'", self._peek(),
+                              hint='let myvar = "value"')
+        name_tok = self._consume("NAME")
+        var_name = name_tok.value
+
+        if not self._peek_type("EQUALS"):
+            raise self._error("Expected '=' after variable name", self._peek(),
+                              hint=f'let {var_name} = "value"')
+        self._consume("EQUALS")
+
+        # List literal: [item1, item2, ...]
+        if self._peek_type("LBRACKET"):
+            self._consume("LBRACKET")
+            items: list = []
+            while not self._peek_type("RBRACKET"):
+                if self._at_end():
+                    raise self._error("Unclosed '[' — missing ']'", self._peek())
+                items.append(self._parse_let_value())
+                if self._peek_type("COMMA"):
+                    self._consume("COMMA")
+            self._consume("RBRACKET")
+            return LetNode(name=var_name, value=items, loc=let_tok.loc)
+
+        value = self._parse_let_value()
+        return LetNode(name=var_name, value=value, loc=let_tok.loc)
+
+    def _parse_let_value(self):
+        """Parse a single value in a let expression."""
+        tok = self._peek()
+        if tok.type == "STRING":
+            self._consume("STRING")
+            return tok.value
+        if tok.type == "NUMBER":
+            self._consume("NUMBER")
+            return int(tok.value)
+        if tok.type == "NAME":
+            self._consume("NAME")
+            # Could be a boolean
+            if tok.value in ("true", "True"):
+                return True
+            if tok.value in ("false", "False"):
+                return False
+            return tok.value  # variable reference
+        if tok.type == "COLOR":
+            self._consume("COLOR")
+            return tok.value
+        raise self._error(f"Expected a value, got {tok.type}", tok)
+
+    def _parse_each(self) -> EachNode:
+        """Parse: each item in items { body }  or  each item, idx in items { body }"""
+        each_tok = self._consume("NAME")  # consume "each"
+        if not self._peek_type("NAME"):
+            raise self._error("Expected variable name after 'each'", self._peek(),
+                              hint='each item in mylist { ... }')
+        var_tok = self._consume("NAME")
+        var_name = var_tok.value
+
+        # Optional index variable: each item, idx in items
+        index_var = None
+        if self._peek_type("COMMA"):
+            self._consume("COMMA")
+            if not self._peek_type("NAME"):
+                raise self._error("Expected index variable name after ','", self._peek())
+            index_var = self._consume("NAME").value
+
+        # Expect "in"
+        if not self._peek_type("NAME") or self._peek().value != "in":
+            raise self._error("Expected 'in' after variable name", self._peek(),
+                              hint=f'each {var_name} in mylist {{ ... }}')
+        self._consume("NAME")  # consume "in"
+
+        # Iterable (variable name)
+        if not self._peek_type("NAME"):
+            raise self._error("Expected iterable name after 'in'", self._peek())
+        iterable = self._consume("NAME").value
+
+        # Body
+        if not self._peek_type("LBRACE"):
+            raise self._error("Expected '{' for each body", self._peek())
+        body = self._parse_block()
+
+        return EachNode(var_name=var_name, iterable=iterable, index_var=index_var,
+                        body=body, loc=each_tok.loc)
+
+    def _parse_if(self) -> IfNode:
+        """Parse: if expr { then } elif expr { ... } else { else }"""
+        if_tok = self._consume("NAME")  # consume "if"
+        condition = self._parse_condition()
+
+        if not self._peek_type("LBRACE"):
+            raise self._error("Expected '{' after if condition", self._peek())
+        then_body = self._parse_block()
+
+        elif_clauses: list[tuple[list, list[Node]]] = []
+        else_body: list[Node] = []
+
+        while self._peek_type("NAME") and self._peek().value == "elif":
+            self._consume("NAME")  # consume "elif"
+            elif_cond = self._parse_condition()
+            if not self._peek_type("LBRACE"):
+                raise self._error("Expected '{' after elif condition", self._peek())
+            elif_body = self._parse_block()
+            elif_clauses.append((elif_cond, elif_body))
+
+        if self._peek_type("NAME") and self._peek().value == "else":
+            self._consume("NAME")  # consume "else"
+            if not self._peek_type("LBRACE"):
+                raise self._error("Expected '{' after else", self._peek())
+            else_body = self._parse_block()
+
+        return IfNode(condition=condition, then_body=then_body,
+                      elif_clauses=elif_clauses, else_body=else_body,
+                      loc=if_tok.loc)
+
+    def _parse_condition(self) -> list:
+        """Parse a condition expression (tokens until '{')."""
+        tokens: list = []
+        while not self._peek_type("LBRACE") and not self._at_end():
+            tok = self._peek()
+            if tok.type == "NAME":
+                tokens.append(("name", self._consume("NAME").value))
+            elif tok.type == "NUMBER":
+                tokens.append(("num", int(self._consume("NUMBER").value)))
+            elif tok.type == "STRING":
+                tokens.append(("str", self._consume("STRING").value))
+            elif tok.type == "OP":
+                tokens.append(("op", self._consume("OP").value))
+            elif tok.type == "DOLLAR":
+                self._consume("DOLLAR")
+                if self._peek_type("NAME"):
+                    tokens.append(("var", self._consume("NAME").value))
+                else:
+                    raise self._error("Expected variable name after '$'", self._peek())
+            else:
+                break
+        return tokens
 
     def _parse_import(self) -> ImportNode:
         imp_tok = self._consume("NAME")  # consume "import"

@@ -141,11 +141,26 @@ _BOX_PROPS = {
     "rounded": _BOOL, "shadow": _BOOL,
     "accent": _COLOR, "inline": _BOOL,
     "width": _INT, "height": _INT,
+    "border-top": _BOOL, "border-right": _BOOL,
+    "border-bottom": _BOOL, "border-left": _BOOL,
+    "border-width": _INT,
 }
 register(ElementDef("box",     "container", props=dict(_BOX_PROPS), handler="_emit_box"))
 register(ElementDef("callout", "container", props={**_BOX_PROPS, "tail": _TAIL}, handler="_emit_box"))
 register(ElementDef("banner",  "container", props=dict(_BOX_PROPS), handler="_emit_box"))
 register(ElementDef("badge",   "container", props=dict(_BOX_PROPS), handler="_emit_box"))
+register(ElementDef("frame",   "container",
+    props={
+        "x": _INT, "y": _INT,
+        "width": _INT, "height": _INT,
+        "fill": _COLOR, "stroke": _COLOR,
+        "rounded": _BOOL, "shadow": _BOOL,
+        "anchor": PropDef("enum", choices=("page", "paragraph", "character")),
+    },
+    handler="_emit_frame"))
+register(ElementDef("toggle",  "container",
+    props={"title": _STRING, "open": _BOOL},
+    handler="_emit_toggle"))
 register(ElementDef("line",    "container",
     props={"stroke": _COLOR, "dashed": _BOOL, "thick": _BOOL},
     handler="_emit_line"))
@@ -157,8 +172,12 @@ for _name in ("circle", "diamond", "chevron"):
         handler="_emit_drawing_shape"))
 
 # Lists
-register(ElementDef("ul", "list", handler="_emit_list"))
-register(ElementDef("ol", "list", props={"start": _INT}, handler="_emit_list"))
+register(ElementDef("ul", "list",
+    props={"marker": _STRING},
+    handler="_emit_list"))
+register(ElementDef("ol", "list",
+    props={"start": _INT, "marker": PropDef("enum", choices=("decimal", "alpha", "roman"))},
+    handler="_emit_list"))
 register(ElementDef("li", "list", parent_must_be={"ul", "ol"}))
 
 # Tables
@@ -200,6 +219,20 @@ register(ElementDef("toc", "meta",
 register(ElementDef("ref", "inline",
     props={"to": PropDef("string", required=True)},
     handler="_emit_ref"))
+
+# Form inputs
+register(ElementDef("checkbox", "input",
+    props={"checked": _BOOL, "label": _STRING},
+    handler="_emit_checkbox"))
+register(ElementDef("text-input", "input",
+    props={"placeholder": _STRING, "value": _STRING, "width": _INT},
+    handler="_emit_text_input"))
+register(ElementDef("dropdown", "input",
+    props={"value": _STRING},
+    handler="_emit_dropdown"))
+register(ElementDef("option", "input",
+    props={"value": _STRING},
+    parent_must_be={"dropdown"}))
 
 # Special
 register(ElementDef("---", "special", handler="_handle_page_break"))

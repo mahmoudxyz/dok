@@ -8,18 +8,25 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'Times New Roman', Calibri, sans-serif;
-  font-size: 10pt;
-  line-height: 1.0;
+  font-family: 'Calibri', Calibri, sans-serif;
+  font-size: 11pt;
+  line-height: 1.15;
   background: #f0f0f0;
   color: #000;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-kerning: auto;
+  font-variant-ligatures: common-ligatures;
+  
+  orphans: 2;
+  widows: 2;
 }
 
 /* ---- Page shell ---- */
 .doc-body {
   max-width: 794px;
   margin: 0 auto;
-  padding: 48px 48px 48px 48px;
+  padding: 96px 96px 96px 96px;
   background: #fff;
   box-shadow: 0 2px 12px rgba(0,0,0,.15);
   min-height: 100vh;
@@ -28,10 +35,10 @@ body {
 .doc-header, .doc-footer {
   max-width: 794px;
   margin: 0 auto;
-  padding: 8px 48px;
+  padding: 8px 96px;
   background: #fafafa;
   border-bottom: 1px solid #ddd;
-  font-size: 9pt;
+  font-size: 10pt;
   color: #555;
 }
 .doc-footer {
@@ -41,50 +48,50 @@ body {
 
 /* ---- Paragraphs ---- */
 p {
-  margin-bottom: 3.0pt;
-  line-height: 1.0;
+  margin-bottom: 8.0pt;
+  line-height: 1.15;
 }
 p:last-child { margin-bottom: 0; }
 
 /* ---- Headings ---- */
 
 h1 {
-  font-family: 'Times New Roman', sans-serif;
+  font-family: 'Calibri', sans-serif;
   font-size: 27pt;
   font-weight: bold;
   color: #1F3864;
-  margin-top: 14.4pt;
-  margin-bottom: 3.6pt;
+  margin-top: 24.0pt;
+  margin-bottom: 6.0pt;
   line-height: 1.0;
 }
 
 h2 {
-  font-family: 'Times New Roman', sans-serif;
+  font-family: 'Calibri', sans-serif;
   font-size: 24pt;
   font-weight: bold;
   color: #1F3864;
-  margin-top: 10.8pt;
-  margin-bottom: 3.6pt;
+  margin-top: 18.0pt;
+  margin-bottom: 6.0pt;
   line-height: 1.0;
 }
 
 h3 {
-  font-family: 'Times New Roman', sans-serif;
+  font-family: 'Calibri', sans-serif;
   font-size: 21pt;
   font-weight: bold;
   color: #404040;
-  margin-top: 8.4pt;
-  margin-bottom: 3.6pt;
+  margin-top: 14.0pt;
+  margin-bottom: 6.0pt;
   line-height: 1.0;
 }
 
 h4 {
-  font-family: 'Times New Roman', sans-serif;
+  font-family: 'Calibri', sans-serif;
   font-size: 19.5pt;
   font-weight: bold;
   color: #404040;
-  margin-top: 7.2pt;
-  margin-bottom: 3.6pt;
+  margin-top: 12.0pt;
+  margin-bottom: 6.0pt;
   line-height: 1.0;
 }
 
@@ -125,12 +132,9 @@ h4 {
 /* ---- Box ---- */
 .doc-box {
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px 16px;
   margin-bottom: 8px;
 }
-
-/* ---- Banner ---- */
-.doc-banner { margin-bottom: 4px; }
 
 /* ---- Badge ---- */
 .doc-badge { display: inline-block; padding: 1px 6px; margin: 4px 0; font-size: 0.85em; }
@@ -200,15 +204,23 @@ h4 {
 
 /* ---- Lists ---- */
 ul, ol {
-  margin: 0 0 3.0pt 0;
+  margin: 0 0 8.0pt 0;
   padding-left: 2.5em;
-  line-height: 1.0;
+  line-height: 1.15;
 }
 li { margin-bottom: 2px; }
 
 /* ---- Hyperlinks ---- */
 a { color: #0563C1; text-decoration: underline; }
 a:hover { color: #033E8F; }
+
+/* ---- Table of Contents ---- */
+.toc { margin-bottom: 16px; }
+.toc-title { font-size: 1.4em; font-weight: bold; margin-bottom: 8px; color: #1F3864; }
+.toc-list { list-style: none; padding: 0; }
+.toc-list li { padding: 3px 0; }
+.toc-list a { color: #0563C1; text-decoration: none; }
+.toc-list a:hover { text-decoration: underline; }
 
 @media print {
   body      { background: white; }
@@ -218,139 +230,80 @@ a:hover { color: #033E8F; }
 </style>
 </head>
 <body>
-<header class="doc-header">
-<p style="text-align:center;margin-bottom:8.0pt"><span style="font-size:9pt;font-style:italic;color:#808080">International Journal of Document Languages · Vol. 1, 2026</span></p>
-</header>
-<main class="doc-body" style="column-count:2;column-gap:24px;column-rule:1px solid #e0e0e0">
-<div class="doc-spacer" style="height:16.67px"></div>
-<p style="text-align:center;margin-bottom:8.0pt"><span style="font-size:13pt;font-weight:bold">Dok: A Compact Document Language for AI-Generated Documents</span></p>
-<div class="doc-spacer" style="height:8.33px"></div>
-<p style="text-align:center;margin-bottom:8.0pt">Mahmoud Ahmed</p>
-<p style="text-align:center;margin-bottom:8.0pt"><span style="font-size:9pt;font-style:italic;color:#808080">mahmoudxyz · GitHub</span></p>
-<div class="doc-spacer" style="height:5.56px"></div>
-<p style="text-align:center;margin-bottom:8.0pt"><span style="font-size:9pt;font-style:italic;color:#808080">Submitted March 2026</span></p>
-<div class="doc-spacer" style="height:16.67px"></div>
-<div class="doc-box" style="background-color:#F8F9FA;border:1px solid #CCCCCC">
-<p style="margin-bottom:8.0pt"><span style="font-weight:bold">Abstract — </span></p>
-<p style="margin-bottom:8.0pt">We present Dok, a tree-structured document language designed as a compact
-compilation target for AI document generation. Unlike existing formats,
-Dok enforces a strict five-layer context inheritance model that eliminates
-ambiguity and reduces AI hallucination surface. A complete document
-compiles from fewer than 200 grammar tokens. We demonstrate that Dok
-produces correct RTL output for Arabic and Hebrew without manual XML
-manipulation, and show that the same source file compiles to DOCX, PDF,
-and HTML with identical structure. Dok is open source and available via pip.</p>
+<main class="doc-body">
+<h1 id="_heading_1" style="margin-top:12.0pt;margin-bottom:6.0pt">New Features Showcase</h1>
+<h2 id="_heading_2" style="margin-top:12.0pt;margin-bottom:6.0pt">Selective Borders</h2>
+<div class="doc-box" style="border-top:none;border-right:none;border-bottom:2px solid #333333;border-left:2px solid #333333">
+<p style="margin-bottom:8.0pt">This box only has left and bottom borders with 2pt thickness.</p>
 </div>
 <div class="doc-spacer" style="height:8.33px"></div>
-<p style="margin-bottom:8.0pt"><span style="font-weight:bold">Keywords: </span><span style="font-style:italic">document generation, AI output formats, RTL support, OOXML, markup languages</span></p>
-<h2 style="margin-top:12.0pt;margin-bottom:6.0pt"><span style="font-size:10pt">1. Introduction</span></h2>
-<p style="margin-bottom:8.0pt">Generating well-formatted documents programmatically
-has been a persistent challenge in software engineering.
-Existing approaches fall into three categories: low-level
-library manipulation (python-docx, reportlab), template
-engines (Carbone, Jinja2), and markup conversion (Markdown,
-LaTeX). Each carries significant drawbacks when used as an
-AI generation target.</p>
-<p style="margin-bottom:8.0pt">Low-level libraries expose implementation details that AI
-models hallucinate incorrectly. The OOXML element ordering
-required for correct RTL rendering, for example, is a
-frequent source of silent failures. Template engines require
-a separate template authoring step that couples document
-structure to application logic. Markup conversion loses
-formatting fidelity at the conversion boundary.</p>
-<p style="margin-bottom:8.0pt">We propose Dok, a document language designed from first
-principles as an AI compilation target. The core insight
-is that a document language for AI must optimize for three
-properties above all others: minimal grammar surface,
-unambiguous structure, and self-correcting error messages.</p>
-<h2 style="margin-top:12.0pt;margin-bottom:6.0pt"><span style="font-size:10pt">2. Language Design</span></h2>
-<h3 style="margin-top:12.0pt;margin-bottom:6.0pt"><span style="font-size:10pt">2.1 The Five-Layer Model</span></h3>
-<p style="margin-bottom:8.0pt">Dok organizes every node into exactly one of five layers:
-document defaults, physical page, layout arrangement,
-text style, and content atoms. A node may only contain
-nodes from the same layer or layers below it. This
-constraint eliminates an entire class of structural errors
-that plague template-based approaches.</p>
-<p style="margin-bottom:8.0pt">Context flows inward through the tree. A child node
-inherits all properties of its ancestors without explicit
-declaration. This context inheritance model means that
-RTL direction, font family, and spacing presets set at
-an outer layer apply automatically to all content within,
-with no repetition required.</p>
-<h3 style="margin-top:12.0pt;margin-bottom:6.0pt"><span style="font-size:10pt">2.2 Deliberate Omissions</span></h3>
-<p style="margin-bottom:8.0pt">Dok has no variables, loops, or conditional expressions.
-This is not a limitation — it is the primary design
-decision. Logic belongs in the host language. Dok&#x27;s job
-is to describe document structure, not to compute it.
-This boundary makes AI output predictable: the model
-cannot produce arbitrarily complex Dok programs, only
-valid document descriptions.</p>
-<h2 style="margin-top:12.0pt;margin-bottom:6.0pt"><span style="font-size:10pt">3. RTL Support</span></h2>
-<p style="margin-bottom:8.0pt">Correct Arabic and Hebrew rendering in OOXML requires
-three XML elements in strict order inside the paragraph
-properties block: bidi, jc, and rPr. Incorrect ordering
-produces documents that render as left-aligned despite
-containing right-aligned text. This failure is silent —
-Word opens the file without error.</p>
-<p style="margin-bottom:8.0pt">Dok eliminates this class of errors entirely. The rtl
-layout node sets all required OOXML properties in the
-correct order at compile time. The author writes one
-wrapper node. The compiler owns the XML details.</p>
-<h2 style="margin-top:12.0pt;margin-bottom:6.0pt"><span style="font-size:10pt">4. AI Integration</span></h2>
-<p style="margin-bottom:8.0pt">The complete Dok grammar fits in approximately 200 tokens,
-making it practical to include in an AI system prompt.
-In our evaluation, Claude Sonnet 4 produced valid Dok
-output on 94% of first attempts when given the grammar
-as a system prompt, compared to 61% for equivalent
-python-docx code generation tasks.</p>
-<p style="margin-bottom:8.0pt">Validation errors in Dok include both source location
-and a corrective hint formatted for readability by both
-humans and language models. In a self-correction loop,
-the model receives the error, regenerates the failing
-section, and resubmits. Convergence to valid output
-occurs within two iterations in 98% of cases.</p>
-<h2 style="margin-top:12.0pt;margin-bottom:6.0pt"><span style="font-size:10pt">5. Results</span></h2>
-<p style="margin-bottom:8.0pt">Table 1 summarizes output correctness across document types:</p>
+<div class="doc-box" style="background-color:#F0F8FF;border-top:none;border-right:none;border-bottom:none;border-left:3px solid #0066CC">
+<p style="margin-bottom:8.0pt">Left accent border only — great for callouts.</p>
+</div>
+<div class="doc-spacer" style="height:16.67px"></div>
+<h2 id="_heading_3" style="margin-top:12.0pt;margin-bottom:6.0pt">Smart Table Column Widths</h2>
 <table class="data-table border">
-<tr class="header-row"><th><p style="margin-bottom:8.0pt"><span style="font-weight:bold">Document Type</span></p>
-</th><th><p style="margin-bottom:8.0pt"><span style="font-weight:bold">Valid %</span></p>
-</th><th><p style="margin-bottom:8.0pt"><span style="font-weight:bold">RTL Correct</span></p>
-</th></tr><tr><td><p style="margin-bottom:8.0pt">Invoice</p>
-</td><td><p style="margin-bottom:8.0pt"><span style="font-weight:bold;color:#008000">97%</span></p>
-</td><td><p style="margin-bottom:8.0pt"><span style="font-weight:bold;color:#008000">Yes</span></p>
-</td></tr><tr class="stripe-row"><td><p style="margin-bottom:8.0pt">Report</p>
-</td><td><p style="margin-bottom:8.0pt"><span style="font-weight:bold;color:#008000">94%</span></p>
-</td><td><p style="margin-bottom:8.0pt"><span style="font-weight:bold;color:#008000">Yes</span></p>
-</td></tr><tr><td><p style="margin-bottom:8.0pt">Legal doc</p>
-</td><td><p style="margin-bottom:8.0pt"><span style="font-weight:bold;color:#FFA500">89%</span></p>
-</td><td><p style="margin-bottom:8.0pt"><span style="font-weight:bold;color:#008000">Yes</span></p>
-</td></tr><tr class="stripe-row"><td><p style="margin-bottom:8.0pt">Mixed RTL</p>
-</td><td><p style="margin-bottom:8.0pt"><span style="font-weight:bold;color:#FFA500">91%</span></p>
-</td><td><p style="margin-bottom:8.0pt"><span style="font-weight:bold;color:#008000">Yes</span></p>
+<colgroup><col style="width:8%"><col style="width:8%"><col style="width:72%"><col style="width:12%"></colgroup>
+<tr class="header-row"><th><p style="margin-bottom:8.0pt"><span style="font-weight:bold">ID</span></p>
+</th><th><p style="margin-bottom:8.0pt"><span style="font-weight:bold">Name</span></p>
+</th><th><p style="margin-bottom:8.0pt"><span style="font-weight:bold">Description</span></p>
+</th><th><p style="margin-bottom:8.0pt"><span style="font-weight:bold">Status</span></p>
+</th></tr><tr><td><p style="margin-bottom:8.0pt">1</p>
+</td><td><p style="margin-bottom:8.0pt">Alice</p>
+</td><td><p style="margin-bottom:8.0pt">Lead developer responsible for architecture design and code reviews across all backend services</p>
+</td><td><p style="margin-bottom:8.0pt">Active</p>
+</td></tr><tr><td><p style="margin-bottom:8.0pt">2</p>
+</td><td><p style="margin-bottom:8.0pt">Bob</p>
+</td><td><p style="margin-bottom:8.0pt">Frontend specialist</p>
+</td><td><p style="margin-bottom:8.0pt">On Leave</p>
 </td></tr>
 </table>
-<div class="doc-spacer" style="height:8.33px"></div>
-<p style="margin-bottom:8.0pt">All RTL documents rendered correctly in Microsoft Word
-2021 and LibreOffice 7.6. No manual post-processing
-was required in any test case.</p>
-<h2 style="margin-top:12.0pt;margin-bottom:6.0pt"><span style="font-size:10pt">6. Conclusion</span></h2>
-<p style="margin-bottom:8.0pt">Dok demonstrates that a compact, constrained document
-language significantly outperforms general-purpose code
-generation for AI document tasks. The five-layer model,
-combined with first-class RTL support and structured
-error messages, makes Dok a practical compilation target
-for production AI document pipelines.</p>
-<p style="margin-bottom:8.0pt">Future work includes a DOCX-to-Dok decompiler to enable
-document editing workflows, and native PDF output to
-eliminate the LibreOffice dependency for print use cases.</p>
-<h2 style="margin-top:12.0pt;margin-bottom:6.0pt"><span style="font-size:10pt">References</span></h2>
-<p style="line-height:1.0">[1] <span style="font-style:italic">ECMA-376: Office Open XML File Formats.</span> ECMA International, 5th ed., 2016.</p>
-<p style="line-height:1.0">[2] MacSween, A. <span style="font-style:italic">python-docx: Create and update Microsoft Word .docx files.</span> GitHub, 2013–2026.</p>
-<p style="line-height:1.0">[3] Ahmed, M. <span style="font-style:italic">dok: A document language.</span> github.com/mahmoudxyz/dok, 2026.</p>
-<p style="line-height:1.0">[4] <span style="font-style:italic">Anthropic Claude API Documentation.</span> Anthropic, 2026.</p>
+<div class="doc-spacer" style="height:16.67px"></div>
+<h2 id="_heading_4" style="margin-top:12.0pt;margin-bottom:6.0pt">Custom List Markers</h2>
+<ul style="list-style:none">
+<li>→ Arrow-pointed item one</li>
+<li>→ Arrow-pointed item two</li>
+<li>→ Arrow-pointed item three</li>
+</ul>
+<ol style="list-style-type:lower-roman">
+<li>First item in Roman numerals</li>
+<li>Second item in Roman numerals</li>
+<li>Third item in Roman numerals</li>
+</ol>
+<div class="doc-spacer" style="height:16.67px"></div>
+<h2 id="_heading_5" style="margin-top:12.0pt;margin-bottom:6.0pt">Form Inputs</h2>
+<p style="margin-bottom:8.0pt">Please fill out the following:</p>
+<p style="margin-bottom:6px"><input type="checkbox" style="margin-right:6px"> <label>I agree to the terms and conditions</label></p>
+<p style="margin-bottom:6px"><input type="checkbox" checked style="margin-right:6px"> <label>Subscribe to newsletter</label></p>
+<p style="margin-bottom:6px"><input type="text" placeholder="Enter your full name" style="width:50%;padding:4px 8px;border:1px solid #ccc;border-radius:3px"></p>
+<p style="margin-bottom:6px"><select style="padding:4px 8px;border:1px solid #ccc;border-radius:3px"><option>Select a department</option><option>Engineering</option><option>Marketing</option><option>Sales</option></select></p>
+<div class="doc-spacer" style="height:16.67px"></div>
+<h2 id="_heading_6" style="margin-top:12.0pt;margin-bottom:6.0pt">Collapsible Section</h2>
+<details style="margin-bottom:8px;border:1px solid #e0e0e0;border-radius:4px;padding:0">
+<summary style="padding:8px 12px;background:#f5f5f5;cursor:pointer;font-weight:bold">Click to view additional details</summary>
+<div style="padding:8px 12px">
+<p style="margin-bottom:8.0pt">This content is hidden by default in HTML.</p>
+<p style="margin-bottom:8.0pt">In DOCX, it renders as a titled section.</p>
+<ul>
+<li>Detail point one</li>
+<li>Detail point two</li>
+</ul>
+</div>
+</details>
+<div class="doc-spacer" style="height:16.67px"></div>
+<h2 id="_heading_7" style="margin-top:12.0pt;margin-bottom:6.0pt">Positioned Frame</h2>
+<div class="dok-frame" style="position:absolute;box-sizing:border-box;left:486.11px;top:69.44px;width:250.0px;height:138.89px;background:#FFFDE7;border:1px solid #FFC107;border-radius:6px;padding:8px 12px;overflow:hidden"><p style="margin-bottom:8.0pt"><span style="font-weight:bold">Quick Note</span></p>
+<p style="margin-bottom:8.0pt">This frame is positioned absolutely on the page.</p>
+</div>
+<div class="doc-spacer" style="height:16.67px"></div>
+<h2 id="_heading_8" style="margin-top:12.0pt;margin-bottom:6.0pt">Nested Boxes</h2>
+<div class="doc-box" style="background-color:#E3F2FD;border-top:1px solid #1565C0;border-right:1px solid #1565C0;border-bottom:1px solid #1565C0;border-left:1px solid #1565C0;border-radius:6px">
+<p style="margin-bottom:8.0pt"><span style="font-weight:bold">Outer Box</span></p>
+<p style="margin-bottom:8.0pt">This box contains another box inside it.</p>
+<div class="doc-box" style="background-color:#FFFFFF;border-top:1px solid #42A5F5;border-right:1px solid #42A5F5;border-bottom:1px solid #42A5F5;border-left:1px solid #42A5F5;border-radius:6px">
+<p style="margin-bottom:8.0pt">Inner nested box with its own styling.</p>
+</div>
+</div>
 </main>
-<footer class="doc-footer">
-<p style="text-align:center;margin-bottom:8.0pt"><span style="font-size:9pt;color:#808080">Page </span><span class="field-placeholder">1</span></p>
-</footer>
 </body>
 </html>

@@ -32,6 +32,8 @@ from .models import (
     DataTableModel, DataTableRowModel, DataTableCellModel,
     ImageModel, SpacerModel, HeaderModel, FooterModel,
     TocModel, TocEntry,
+    CheckboxModel, TextInputModel, DropdownModel,
+    ToggleModel, FrameModel,
 )
 from .writer_utils import group_runs_by_hyperlink
 from .xml_writer import XmlWriter
@@ -78,7 +80,9 @@ class DocxWriter:
         # Build optional parts
         header_xml = self._build_header_xml() if self._model.header else None
         footer_xml = self._build_footer_xml() if self._model.footer else None
-        numbering_xml = build_numbering_xml() if self._model.has_lists else None
+        numbering_xml = build_numbering_xml(
+            custom_markers=self._model.custom_markers
+        ) if self._model.has_lists else None
 
         # Assign rel IDs for header/footer/numbering
         header_rel_id = footer_rel_id = numbering_rel_id = None
@@ -168,6 +172,11 @@ class DocxWriter:
         TableModel:     "_write_table",
         PageBreakModel: "_write_page_break",
         TocModel:       "_write_toc",
+        FrameModel:     "_write_frame",
+        ToggleModel:    "_write_toggle",
+        CheckboxModel:  "_write_checkbox",
+        TextInputModel: "_write_text_input",
+        DropdownModel:  "_write_dropdown",
     }
 
     def _write_item(self, w: XmlWriter, item) -> None:
@@ -420,8 +429,8 @@ class DocxWriter:
             return
 
         # All boxes use the same table-cell rendering path
-        cw = self._content_width()
-        box_w = (cw * box.width_pct // 100) if box.width_pct else cw
+        cw = box.max_width_twips if box.max_width_twips else self._content_width()
+        box_w = min((cw * box.width_pct // 100) if box.width_pct else cw, cw)
 
         w.open("w:tbl")
         w.open("w:tblPr")
@@ -434,27 +443,38 @@ class DocxWriter:
         w.close("w:tblCellMar")
         w.open("w:tblBorders")
         stroke_color = box.stroke or DEFAULT_BORDER_COLOR
+        border_sz = str(box.border_width * 8)  # pt → OOXML eighth-points
+        side_enabled = {
+            "top": box.border_top, "bottom": box.border_bottom,
+            "right": box.border_right, "left": box.border_left,
+        }
         if box.stroke:
             for side in ("top", "bottom", "right"):
-                w.tag(f"w:{side}", {"w:val": "single", "w:sz": "4",
-                                    "w:space": "0", "w:color": stroke_color})
+                if side_enabled[side]:
+                    w.tag(f"w:{side}", {"w:val": "single", "w:sz": border_sz,
+                                        "w:space": "0", "w:color": stroke_color})
+                else:
+                    w.tag(f"w:{side}", {"w:val": "none", "w:sz": "0",
+                                        "w:space": "0", "w:color": "auto"})
             # Left border: thick accent or normal stroke
-            left_color = box.accent or stroke_color
-            left_sz = "24" if box.accent else "4"
-            w.tag("w:left", {"w:val": "single", "w:sz": left_sz,
-                              "w:space": "0", "w:color": left_color})
+            if side_enabled["left"]:
+                left_color = box.accent or stroke_color
+                left_sz = "24" if box.accent else border_sz
+                w.tag("w:left", {"w:val": "single", "w:sz": left_sz,
+                                  "w:space": "0", "w:color": left_color})
+            else:
+                w.tag("w:left", {"w:val": "none", "w:sz": "0",
+                                  "w:space": "0", "w:color": "auto"})
         else:
-            if box.accent:
-                # No stroke but has accent: only left border visible
+            if box.accent and side_enabled["left"]:
                 w.tag("w:left", {"w:val": "single", "w:sz": "24",
                                   "w:space": "0", "w:color": box.accent})
-                for side in ("top", "bottom", "right"):
-                    w.tag(f"w:{side}", {"w:val": "none", "w:sz": "0",
-                                        "w:space": "0", "w:color": "auto"})
             else:
-                for side in ("top", "left", "bottom", "right"):
-                    w.tag(f"w:{side}", {"w:val": "none", "w:sz": "0",
-                                        "w:space": "0", "w:color": "auto"})
+                w.tag("w:left", {"w:val": "none", "w:sz": "0",
+                                  "w:space": "0", "w:color": "auto"})
+            for side in ("top", "bottom", "right"):
+                w.tag(f"w:{side}", {"w:val": "none", "w:sz": "0",
+                                    "w:space": "0", "w:color": "auto"})
         for side in ("insideH", "insideV"):
             w.tag(f"w:{side}", {"w:val": "none", "w:sz": "0",
                                 "w:space": "0", "w:color": "auto"})
@@ -542,17 +562,22 @@ class DocxWriter:
 
         w.close("w:tblPr")
 
-        # Grid columns
-        col_w = cw // max_cols
+        # Grid columns — use pre-calculated proportional widths if available
+        if table.col_widths and len(table.col_widths) == max_cols:
+            col_widths = [cw * pct // 100 for pct in table.col_widths]
+        else:
+            col_widths = [cw // max_cols] * max_cols
         w.open("w:tblGrid")
-        for _ in range(max_cols):
-            w.tag("w:gridCol", {"w:w": str(col_w)})
+        for cw_i in col_widths:
+            w.tag("w:gridCol", {"w:w": str(cw_i)})
         w.close("w:tblGrid")
 
         for row_idx, row in enumerate(table.rows):
             w.open("w:tr")
+            col_idx = 0
             for cell in row.cells:
-                cell_w = col_w * cell.colspan
+                cell_w = sum(col_widths[col_idx:col_idx + cell.colspan])
+                col_idx += cell.colspan
                 w.open("w:tc")
                 w.open("w:tcPr")
                 w.tag("w:tcW", {"w:w": str(cell_w), "w:type": "dxa"})
@@ -948,6 +973,197 @@ class DocxWriter:
             w.close("w:r")
             w.close("w:hyperlink")
             w.close("w:p")
+
+    # ------------------------------------------------------------------
+    # Form fields
+    # ------------------------------------------------------------------
+
+    def _write_toggle(self, w: XmlWriter, toggle: ToggleModel) -> None:
+        """DOCX fallback: render as a box with a title (no native toggle support)."""
+        # Title paragraph with indicator
+        indicator = "▼" if toggle.open else "▶"
+        w.open("w:p")
+        w.open("w:pPr")
+        w.tag("w:spacing", {"w:before": "80", "w:after": "40"})
+        w.tag("w:shd", {"w:val": "clear", "w:color": "auto", "w:fill": "F5F5F5"})
+        w.close("w:pPr")
+        w.open("w:r")
+        w.open("w:rPr"); w.tag("w:b", {}); w.close("w:rPr")
+        w.w_t(f"{indicator} {toggle.title}")
+        w.close("w:r")
+        w.close("w:p")
+        # Content (always shown in DOCX since there's no interactivity)
+        for item in toggle.content:
+            self._write_item(w, item)
+
+    def _write_checkbox(self, w: XmlWriter, cb: CheckboxModel) -> None:
+        w.open("w:p")
+        w.open("w:pPr"); w.tag("w:spacing", {"w:after": "80"}); w.close("w:pPr")
+        # Checkbox field
+        w.open("w:r")
+        w.tag("w:fldChar", {"w:fldCharType": "begin"})
+        w.close("w:r")
+        w.open("w:r")
+        checked_val = "1" if cb.checked else "0"
+        w.open("w:instrText", {"xml:space": "preserve"})
+        w.text(f" FORMCHECKBOX ")
+        w.close("w:instrText")
+        w.close("w:r")
+        w.open("w:r")
+        w.tag("w:fldChar", {"w:fldCharType": "separate"})
+        w.close("w:r")
+        w.open("w:r")
+        # Display as checked/unchecked symbol
+        w.w_t("\u2612" if cb.checked else "\u2610")
+        w.close("w:r")
+        w.open("w:r")
+        w.tag("w:fldChar", {"w:fldCharType": "end"})
+        w.close("w:r")
+        # Label text
+        if cb.label:
+            w.open("w:r")
+            w.w_t(f" {cb.label}")
+            w.close("w:r")
+        w.close("w:p")
+
+    def _write_text_input(self, w: XmlWriter, inp: TextInputModel) -> None:
+        w.open("w:p")
+        w.open("w:pPr"); w.tag("w:spacing", {"w:after": "80"}); w.close("w:pPr")
+        # Show placeholder or value as underlined text (simulating a form field)
+        display = inp.value or inp.placeholder or "________________"
+        w.open("w:r")
+        w.open("w:rPr")
+        w.tag("w:u", {"w:val": "single"})
+        if not inp.value and inp.placeholder:
+            w.tag("w:color", {"w:val": "808080"})
+        w.close("w:rPr")
+        w.w_t(f" {display} ")
+        w.close("w:r")
+        w.close("w:p")
+
+    def _write_dropdown(self, w: XmlWriter, dd: DropdownModel) -> None:
+        w.open("w:p")
+        w.open("w:pPr"); w.tag("w:spacing", {"w:after": "80"}); w.close("w:pPr")
+        # Display as a bracketed selection
+        display = dd.value or (dd.options[0] if dd.options else "—")
+        w.open("w:r")
+        w.open("w:rPr")
+        w.tag("w:shd", {"w:val": "clear", "w:color": "auto", "w:fill": "F0F0F0"})
+        w.close("w:rPr")
+        w.w_t(f" {display} ▾")
+        w.close("w:r")
+        w.close("w:p")
+
+    # ------------------------------------------------------------------
+    # Frame (positioned text box)
+    # ------------------------------------------------------------------
+
+    def _write_frame(self, w: XmlWriter, frame: FrameModel) -> None:
+        """Render a positioned frame as a wp:anchor floating text box."""
+        # Convert twips → EMU (1 twip = 914400/1440 = 635 EMU)
+        TWIP_TO_EMU = 635
+        cx = frame.width_twips * TWIP_TO_EMU if frame.width_twips else inch_to_emu(3.0)
+        cy = frame.height_twips * TWIP_TO_EMU if frame.height_twips else inch_to_emu(2.0)
+        pos_x = frame.x_twips * TWIP_TO_EMU
+        pos_y = frame.y_twips * TWIP_TO_EMU
+
+        sid = self._next_shape_id()
+
+        # Anchor type mapping
+        rel_h = "page" if frame.anchor == "page" else "column"
+        rel_v = "page" if frame.anchor == "page" else "paragraph"
+
+        w.open("w:p")
+        w.open("w:r")
+        w.open("w:drawing")
+        w.open("wp:anchor", {
+            "distT": "0", "distB": "0", "distL": "114300", "distR": "114300",
+            "simplePos": "0", "relativeHeight": str(251658240 + sid),
+            "behindDoc": "0", "locked": "0", "layoutInCell": "1",
+            "allowOverlap": "1",
+        })
+        w.tag("wp:simplePos", {"x": "0", "y": "0"})
+        w.open("wp:positionH", {"relativeFrom": rel_h})
+        w.open("wp:posOffset"); w.text(str(pos_x)); w.close("wp:posOffset")
+        w.close("wp:positionH")
+        w.open("wp:positionV", {"relativeFrom": rel_v})
+        w.open("wp:posOffset"); w.text(str(pos_y)); w.close("wp:posOffset")
+        w.close("wp:positionV")
+        w.tag("wp:extent", {"cx": str(cx), "cy": str(cy)})
+        w.tag("wp:effectExtent", {"l": "0", "t": "0", "r": "0", "b": "0"})
+        w.tag("wp:wrapNone")
+        w.tag("wp:docPr", {"id": str(sid), "name": f"Frame{sid}"})
+
+        w.open("a:graphic", {"xmlns:a": _A_NS})
+        w.open("a:graphicData", {"uri": _WPS_URI})
+        w.open("wps:wsp")
+
+        # Shape properties — rectangle
+        w.open("wps:spPr")
+        preset = "roundRect" if frame.rounded else "rect"
+        w.open("a:prstGeom", {"prst": preset})
+        w.tag("a:avLst")
+        w.close("a:prstGeom")
+
+        # Fill
+        if frame.fill:
+            w.open("a:solidFill")
+            w.tag("a:srgbClr", {"val": frame.fill.lstrip("#")})
+            w.close("a:solidFill")
+        else:
+            w.tag("a:noFill")
+
+        # Stroke
+        if frame.stroke:
+            w.open("a:ln", {"w": "12700"})
+            w.open("a:solidFill")
+            w.tag("a:srgbClr", {"val": frame.stroke.lstrip("#")})
+            w.close("a:solidFill")
+            w.close("a:ln")
+        else:
+            w.open("a:ln")
+            w.tag("a:noFill")
+            w.close("a:ln")
+
+        # Shadow
+        if frame.shadow:
+            w.open("a:effectLst")
+            w.open("a:outerShdw", {"blurRad": "50800", "dist": "38100", "dir": "2700000", "algn": "tl"})
+            w.open("a:srgbClr", {"val": "000000"})
+            w.tag("a:alpha", {"val": "40000"})
+            w.close("a:srgbClr")
+            w.close("a:outerShdw")
+            w.close("a:effectLst")
+
+        w.close("wps:spPr")
+
+        # Text box content
+        w.open("wps:txbx")
+        w.open("w:txbxContent")
+        if frame.content:
+            for child in frame.content:
+                self._write_item(w, child)
+        else:
+            w.raw("<w:p/>")
+        w.close("w:txbxContent")
+        w.close("wps:txbx")
+
+        # Body properties
+        w.open("wps:bodyPr", {
+            "wrap": "square",
+            "lIns": "91440", "tIns": "45720",
+            "rIns": "91440", "bIns": "45720",
+            "anchor": "t",
+        })
+        w.close("wps:bodyPr")
+
+        w.close("wps:wsp")
+        w.close("a:graphicData")
+        w.close("a:graphic")
+        w.close("wp:anchor")
+        w.close("w:drawing")
+        w.close("w:r")
+        w.close("w:p")
 
     # ------------------------------------------------------------------
     # Page break

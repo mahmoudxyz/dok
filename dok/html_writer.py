@@ -32,6 +32,8 @@ from .models import (
     DataTableModel, DataTableRowModel, DataTableCellModel,
     ImageModel, SpacerModel, HeaderModel, FooterModel,
     TocModel, TocEntry,
+    CheckboxModel, TextInputModel, DropdownModel,
+    ToggleModel, FrameModel,
     SPACING_PRESETS,
 )
 
@@ -379,8 +381,25 @@ a:hover {{ color: #033E8F; }}
             # ---- List paragraph: collect the whole run into one <ul>/<ol> ----
             if isinstance(item, ParagraphModel) and item.num_id:
                 num_id   = item.num_id
-                list_tag = "ol" if num_id == 2 else "ul"
-                parts.append(f"<{list_tag}>\n")
+                is_ordered = (num_id == 2)
+                list_tag = "ol" if is_ordered else "ul"
+
+                # RTL direction on list container
+                first_item = item
+                dir_attr = ' dir="rtl"' if first_item.direction == "rtl" else ""
+
+                # Custom marker styling
+                marker_style = ""
+                custom_marker = first_item.list_marker
+                if custom_marker:
+                    marker_style = ' style="list-style:none"'
+                elif is_ordered and first_item.list_format:
+                    fmt_map = {"alpha": "lower-alpha", "roman": "lower-roman",
+                               "decimal": "decimal"}
+                    css_type = fmt_map.get(first_item.list_format, "decimal")
+                    marker_style = f' style="list-style-type:{css_type}"'
+
+                parts.append(f"<{list_tag}{dir_attr}{marker_style}>\n")
 
                 while (
                     i < len(items)
@@ -389,12 +408,16 @@ a:hover {{ color: #033E8F; }}
                 ):
                     li      = items[i]
                     indent  = li.num_ilvl or 0
-                    # Nested levels → extra left margin; level 0 needs none
-                    # (the <ul>/<ol> already carries the base indent from CSS)
-                    style   = (f' style="margin-left:{indent * 1.5}em"'
-                               if indent else "")
+                    styles_parts: list[str] = []
+                    if indent:
+                        styles_parts.append(f"margin-left:{indent * 1.5}em")
+                    # Custom marker via ::before pseudo (inline style fallback)
+                    marker_prefix = ""
+                    if li.list_marker:
+                        marker_prefix = f'{html.escape(li.list_marker)} '
+                    li_style = f' style="{";".join(styles_parts)}"' if styles_parts else ""
                     inner   = self._render_runs(li.runs)
-                    parts.append(f"<li{style}>{inner}</li>\n")
+                    parts.append(f"<li{li_style}>{marker_prefix}{inner}</li>\n")
                     i += 1
 
                 parts.append(f"</{list_tag}>\n")
@@ -418,6 +441,11 @@ a:hover {{ color: #033E8F; }}
         TableModel:     "_render_table",
         PageBreakModel: "_render_page_break",
         TocModel:       "_render_toc",
+        ToggleModel:    "_render_toggle",
+        CheckboxModel:  "_render_checkbox",
+        TextInputModel: "_render_text_input",
+        DropdownModel:  "_render_dropdown",
+        FrameModel:     "_render_frame",
     }
 
     def _render_item(self, item) -> str:
@@ -581,6 +609,78 @@ a:hover {{ color: #033E8F; }}
         return f'<span class="field-placeholder"{style_attr}>{html.escape(text)}</span>'
 
     # ------------------------------------------------------------------
+    # Form fields
+    # ------------------------------------------------------------------
+
+    def _render_toggle(self, toggle: ToggleModel) -> str:
+        open_attr = " open" if toggle.open else ""
+        inner = self._render_items(toggle.content or [])
+        title = html.escape(toggle.title)
+        return (f'<details{open_attr} style="margin-bottom:8px;border:1px solid #e0e0e0;'
+                f'border-radius:4px;padding:0">\n'
+                f'<summary style="padding:8px 12px;background:#f5f5f5;cursor:pointer;'
+                f'font-weight:bold">{title}</summary>\n'
+                f'<div style="padding:8px 12px">\n{inner}</div>\n'
+                f'</details>\n')
+
+    def _render_checkbox(self, cb: CheckboxModel) -> str:
+        checked = " checked" if cb.checked else ""
+        label_html = f' <label>{html.escape(cb.label)}</label>' if cb.label else ""
+        return (f'<p style="margin-bottom:6px">'
+                f'<input type="checkbox"{checked} style="margin-right:6px">'
+                f'{label_html}</p>\n')
+
+    def _render_text_input(self, inp: TextInputModel) -> str:
+        ph = f' placeholder="{html.escape(inp.placeholder)}"' if inp.placeholder else ""
+        val = f' value="{html.escape(inp.value)}"' if inp.value else ""
+        w = f"width:{min(inp.width_pct, 100)}%" if inp.width_pct < 100 else "width:100%"
+        return (f'<p style="margin-bottom:6px">'
+                f'<input type="text"{ph}{val} '
+                f'style="{w};padding:4px 8px;border:1px solid #ccc;border-radius:3px">'
+                f'</p>\n')
+
+    def _render_dropdown(self, dd: DropdownModel) -> str:
+        opts = "".join(
+            f'<option{" selected" if o == dd.value else ""}>{html.escape(o)}</option>'
+            for o in dd.options
+        )
+        return (f'<p style="margin-bottom:6px">'
+                f'<select style="padding:4px 8px;border:1px solid #ccc;border-radius:3px">'
+                f'{opts}</select></p>\n')
+
+    # ------------------------------------------------------------------
+    # Frame (positioned text box)
+    # ------------------------------------------------------------------
+
+    def _render_frame(self, frame: FrameModel) -> str:
+        styles: list[str] = ["position:absolute", "box-sizing:border-box"]
+
+        if frame.x_twips:
+            styles.append(f"left:{twip_to_px(frame.x_twips)}px")
+        if frame.y_twips:
+            styles.append(f"top:{twip_to_px(frame.y_twips)}px")
+        if frame.width_twips:
+            styles.append(f"width:{twip_to_px(frame.width_twips)}px")
+        if frame.height_twips:
+            styles.append(f"height:{twip_to_px(frame.height_twips)}px")
+
+        if frame.fill:
+            styles.append(f"background:#{frame.fill.lstrip('#')}")
+        if frame.stroke:
+            styles.append(f"border:1px solid #{frame.stroke.lstrip('#')}")
+        if frame.rounded:
+            styles.append("border-radius:6px")
+        if frame.shadow:
+            styles.append("box-shadow:2px 2px 6px rgba(0,0,0,0.2)")
+
+        styles.append("padding:8px 12px")
+        styles.append("overflow:hidden")
+
+        inner = self._render_items(frame.content) if frame.content else ""
+        style = ";".join(styles)
+        return f'<div class="dok-frame" style="{style}">{inner}</div>\n'
+
+    # ------------------------------------------------------------------
     # Line
     # ------------------------------------------------------------------
 
@@ -613,21 +713,39 @@ a:hover {{ color: #033E8F; }}
         styles: list[str] = []
         if box.fill:
             styles.append(f"background-color:#{box.fill}")
+        bw = box.border_width
         if box.accent:
-            # Accent = thick left border, thin or no other borders
-            styles.append(f"border-left:4px solid #{box.accent}")
+            # Accent = thick left border
+            if box.border_left:
+                styles.append(f"border-left:4px solid #{box.accent}")
+            else:
+                styles.append("border-left:none")
             if box.stroke:
-                styles.append(f"border-right:1px solid #{box.stroke}")
-                styles.append(f"border-top:1px solid #{box.stroke}")
-                styles.append(f"border-bottom:1px solid #{box.stroke}")
+                if box.border_right:
+                    styles.append(f"border-right:{bw}px solid #{box.stroke}")
+                else:
+                    styles.append("border-right:none")
+                if box.border_top:
+                    styles.append(f"border-top:{bw}px solid #{box.stroke}")
+                else:
+                    styles.append("border-top:none")
+                if box.border_bottom:
+                    styles.append(f"border-bottom:{bw}px solid #{box.stroke}")
+                else:
+                    styles.append("border-bottom:none")
         elif box.stroke:
-            styles.append(f"border:1px solid #{box.stroke}")
+            for side, enabled in [("top", box.border_top), ("right", box.border_right),
+                                  ("bottom", box.border_bottom), ("left", box.border_left)]:
+                if enabled:
+                    styles.append(f"border-{side}:{bw}px solid #{box.stroke}")
+                else:
+                    styles.append(f"border-{side}:none")
         if box.rounded:
             styles.append("border-radius:6px")
         if box.shadow:
             styles.append("box-shadow:0 2px 8px rgba(0,0,0,0.12)")
         if box.width_pct:
-            styles.append(f"width:{box.width_pct}%")
+            styles.append(f"width:{min(box.width_pct, 100)}%")
         if box.height_pt:
             px = round(box.height_pt * 1.333)
             styles.append(f"min-height:{px}px")
@@ -667,6 +785,12 @@ a:hover {{ color: #033E8F; }}
         # RTL table: reverse column display order
         dir_attr = ' dir="rtl"' if table.direction == "rtl" else ""
 
+        # Column widths via <colgroup>
+        colgroup = ""
+        if table.col_widths:
+            cols = "".join(f'<col style="width:{pct}%">' for pct in table.col_widths)
+            colgroup = f"<colgroup>{cols}</colgroup>\n"
+
         rows_html: list[str] = []
         for row_idx, row in enumerate(table.rows):
             tr_class = ""
@@ -694,7 +818,7 @@ a:hover {{ color: #033E8F; }}
 
             rows_html.append(f"<tr{tr_class}>{''.join(cells_html)}</tr>")
 
-        return f'<table class="{cls}"{dir_attr}>\n{"".join(rows_html)}\n</table>\n'
+        return f'<table class="{cls}"{dir_attr}>\n{colgroup}{"".join(rows_html)}\n</table>\n'
 
     # ------------------------------------------------------------------
     # Image

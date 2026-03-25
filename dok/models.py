@@ -55,8 +55,10 @@ class ParagraphModel:
     shading:      str | None     = None
     border_left:  str | None     = None
     border_left_sz: int          = 0
-    num_id:       int            = 0      # list numbering ID (0 = none)
+    num_id:       int            = 0      # list numbering ID (0 = none, 1 = bullet, 2 = ordered, 3+ = custom)
     num_ilvl:     int            = 0      # list nesting level
+    list_marker:  str | None     = None   # custom bullet marker char (e.g. "→", "★")
+    list_format:  str | None     = None   # ordered format: "decimal", "alpha", "roman"
     bookmark:     str | None     = None   # bookmark name for internal anchors
 
 
@@ -87,6 +89,13 @@ class BoxModel:
     align:    str               = "left"    # alignment for inline badge
     width_pct: int              = 0         # 0 = full width, 1-100 = % of content area
     height_pt: int              = 0         # 0 = auto, >0 = fixed height in points
+    max_width_twips: int        = 0         # 0 = use page content width, >0 = parent-constrained
+    # Selective borders (only relevant when stroke is set)
+    border_top:    bool         = True
+    border_right:  bool         = True
+    border_bottom: bool         = True
+    border_left:   bool         = True
+    border_width:  int          = 1         # border thickness in pt
 
 
 # Backward compat aliases
@@ -156,6 +165,7 @@ class DataTableModel:
     border:    bool = True
     striped:   bool = False
     direction: str  = "ltr"    # table-level direction (affects column order)
+    col_widths: list[int] = field(default_factory=list)  # per-column width in pct (0 = equal)
 
 
 @dataclass
@@ -204,6 +214,50 @@ class FooterModel:
 @dataclass
 class PageBreakModel:
     pass
+
+
+# ---------------------------------------------------------------------------
+# Form fields
+# ---------------------------------------------------------------------------
+
+@dataclass
+class CheckboxModel:
+    checked: bool = False
+    label:   str  = ""
+
+
+@dataclass
+class TextInputModel:
+    placeholder: str = ""
+    value:       str = ""
+    width_pct:   int = 100
+
+
+@dataclass
+class DropdownModel:
+    options: list[str] = field(default_factory=list)
+    value:   str       = ""
+
+
+@dataclass
+class FrameModel:
+    x_twips:      int            = 0
+    y_twips:      int            = 0
+    width_twips:  int            = 0
+    height_twips: int            = 0
+    fill:         str | None     = None
+    stroke:       str | None     = None
+    rounded:      bool           = False
+    shadow:       bool           = False
+    anchor:       str            = "page"    # page | paragraph | character
+    content:      list           = field(default_factory=list)
+
+
+@dataclass
+class ToggleModel:
+    title:   str  = "Details"
+    open:    bool = False
+    content: list = field(default_factory=list)
 
 
 @dataclass
@@ -263,6 +317,7 @@ class DocxModel:
     footer:          FooterModel | None = None
     base_dir:        Path | None       = None
     has_lists:       bool              = False
+    custom_markers:  list[str]         = field(default_factory=list)  # unique custom bullet markers
     # Typography settings
     kerning:         bool              = True     # enable kerning
     ligatures:       bool              = True     # enable ligatures

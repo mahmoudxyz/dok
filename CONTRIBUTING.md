@@ -70,7 +70,7 @@ The registry is the single source of truth for all elements. Every element has:
 @dataclass
 class ElementDef:
     name: str                          # "box", "h1", "ul", etc.
-    category: str                      # "doc"|"page"|"layout"|"style"|"block"|"container"|"list"|"table"|"inline"|"meta"|"drawing"
+    category: str                      # "doc"|"page"|"layout"|"style"|"block"|"container"|"list"|"table"|"inline"|"meta"|"drawing"|"input"|"special"
     props: dict[str, PropDef]          # allowed properties with types
     parent_must_be: set[str] | None    # structural constraint (e.g. "li" → {"ul", "ol"})
     handler: str | None                # converter method name (e.g. "_emit_box")

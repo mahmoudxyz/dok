@@ -228,7 +228,7 @@ doc     →  document defaults    (font, size, spacing)
 page    →  physical space       (margin, paper, cols)
 layout  →  arrangement          (center, right, rtl, row, cols, indent)
 style   →  appearance           (bold, italic, color, size, font)
-content →  atoms                (h1-h4, p, code, box, line, table, ul/ol, img, link, toc, ref)
+content →  atoms                (h1-h4, p, code, box, line, table, ul/ol, img, link, toc, ref, frame, toggle, checkbox, text-input, dropdown)
 ```
 
 ---
@@ -645,7 +645,7 @@ table(border: true, striped: true) {
 | `border` | boolean | `false` |
 | `striped` | boolean | `false` |
 
-`th` cells are bold with a shaded background. `td(colspan: 2)` spans columns.
+`th` cells are bold with a shaded background. `td(colspan: 2)` spans columns. Column widths are automatically calculated based on content length — columns with more text get proportionally more space.
 
 **Cell and row props:**
 

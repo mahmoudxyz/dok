@@ -1,0 +1,893 @@
+// ─────────────────────────────────────────────────────────────
+// comprehensive-test.dok
+// Topic: "State of Document Generation 2026"
+// Tests: every old and new feature in dok
+// ─────────────────────────────────────────────────────────────
+
+// ── Reusable components ───────────────────────────────────────
+
+def metric(label, value, clr) {
+  box(fill: #F8F9FA, stroke: #E0E0E0, rounded: true) {
+    center {
+      color(value: gray, size: 9) { label }
+      bold(size: 22, color: clr) { value }
+    }
+  }
+}
+
+def section-divider(title) {
+  space(size: 10)
+  box(fill: #1F3864, color: white, accent: gold) {
+    bold(size: 12) { title }
+  }
+  space(size: 6)
+}
+
+def feature-row(name, old, new) {
+  tr {
+    td { bold { name } }
+    td { italic(color: gray) { old } }
+    td { bold(color: green) { new } }
+  }
+}
+
+def verdict(label, clr) {
+  badge(fill: clr, color: white) { label }
+}
+
+// ── Document ──────────────────────────────────────────────────
+
+doc(font: Calibri, size: 11, spacing: normal,
+    kerning: true, hyphenate: true, widow-orphan: 2) {
+
+  header {
+    cols(ratio: 1:1) {
+      col {
+        italic(color: gray, size: 9) {
+          "State of Document Generation 2026"
+        }
+      }
+      col {
+        right {
+          italic(color: gray, size: 9) { "Confidential — Internal Use Only" }
+        }
+      }
+    }
+    line(stroke: #1F3864)
+  }
+
+  footer {
+    line(stroke: lightgray)
+    cols(ratio: 1:1) {
+      col {
+        italic(color: gray, size: 8) { "© 2026 Dok Research Group" }
+      }
+      col {
+        right {
+          p { color(value: gray, size: 8) { "Page " } page-number }
+        }
+      }
+    }
+  }
+
+  // ── COVER PAGE ───────────────────────────────────────────────
+  page(margin: normal, cols: 1, paper: a4) {
+
+    space(size: 30)
+
+    box(fill: #1F3864, color: white, accent: gold) {
+      center {
+        bold(size: 24) { "State of Document Generation" }
+        bold(size: 18, color: gold) { "2026 Annual Report" }
+        space(size: 6)
+        italic(size: 11) {
+          "Benchmarking AI-generated documents across formats, languages, and tools"
+        }
+      }
+    }
+
+    space(size: 20)
+
+    center {
+      bold(size: 12) { "Published by the Dok Research Group" }
+      italic(color: gray) { "March 2026 · First Edition" }
+    }
+
+    space(size: 20)
+
+    // Key numbers at a glance
+    row {
+      metric(label: "Tools Evaluated",   value: "12",    clr: #1F3864)
+      metric(label: "Documents Tested",  value: "2,400", clr: #1F3864)
+      metric(label: "Languages",         value: "8",     clr: #1F3864)
+      metric(label: "Pages Compiled",    value: "48K",   clr: #1F3864)
+    }
+
+    space(size: 20)
+
+    // Table of contents
+    toc(depth: 3, title: "Table of Contents")
+
+    space(size: 16)
+
+    callout(fill: #EBF5FB, stroke: #2E86C1, tail: top-left) {
+      bold { "How to read this report: " }
+      """
+      Each section tests a distinct category of document generation capability.
+      Green badges indicate passing results. Orange indicates partial support.
+      Red indicates failure or missing feature.
+      """
+    }
+
+  }
+
+  // ── BODY — single column ─────────────────────────────────────
+  page(margin: normal, cols: 1, paper: a4) {
+
+    // ── 1. Executive Summary ─────────────────────────────────
+    h1(id: "executive-summary") { "1. Executive Summary" }
+
+    p {
+      """
+      Document generation has undergone a fundamental shift in 2026.
+      The rise of large language models as document authors — rather than
+      mere text generators — has exposed critical gaps in existing formats.
+      Python-docx, LaTeX, Markdown, and HTML were designed for human authors.
+      None were designed with AI generation as a primary concern.
+      """
+    }
+
+    p {
+      """
+      This report evaluates twelve document generation tools across four
+      dimensions: first-attempt validity rate, RTL correctness, token
+      efficiency, and typography quality. We introduce Dok as a baseline
+      for what an AI-native document format should look like, and measure
+      all other tools against it.
+      """
+    }
+
+    box(fill: #FFF8E1, accent: #FFB300) {
+      bold { "Key Finding: " }
+      p {
+        "Tools designed for AI generation outperform human-authoring tools by "
+        bold(color: green) { "34 percentage points" }
+        " on first-attempt validity. RTL correctness remains the largest "
+        "unsolved problem across all evaluated tools except Dok."
+      }
+    }
+
+    space(size: 10)
+
+    // ── 2. Methodology ───────────────────────────────────────
+    h1(id: "methodology") { "2. Methodology" }
+
+    h2(id: "test-suite") { "2.1 Test Suite" }
+
+    p {
+      """
+      We assembled a test suite of 2,400 document generation prompts
+      spanning eight document categories. Prompts were submitted to
+      Claude Sonnet and GPT-4o using identical system prompts for
+      each format. Output was evaluated by automated validators and
+      two human reviewers per document.
+      """
+    }
+
+    table(border: true, striped: true) {
+      tr {
+        th { "Category" }
+        th { "Count" }
+        th { "Avg Pages" }
+        th { "RTL Subset" }
+      }
+      tr { td { "Invoices" }          td { "400" } td { "2"  } td { "120" } }
+      tr { td { "Reports" }           td { "400" } td { "8"  } td { "80"  } }
+      tr { td { "Legal contracts" }   td { "300" } td { "12" } td { "60"  } }
+      tr { td { "Academic papers" }   td { "300" } td { "10" } td { "40"  } }
+      tr { td { "Certificates" }      td { "200" } td { "1"  } td { "100" } }
+      tr { td { "Resumes / CVs" }     td { "300" } td { "2"  } td { "80"  } }
+      tr { td { "Technical docs" }    td { "300" } td { "6"  } td { "20"  } }
+      tr { td { "Mixed RTL/LTR" }     td { "200" } td { "4"  } td { "200" } }
+    }
+
+    h2 { "2.2 Evaluation Criteria" }
+
+    ol {
+      li {
+        bold { "First-attempt validity — " }
+        "Does the output compile or execute without errors on the first try?"
+      }
+      li {
+        bold { "RTL correctness — " }
+        "Is Arabic/Hebrew text correctly right-aligned with proper bidi ordering?"
+      }
+      li {
+        bold { "Token efficiency — " }
+        "How many tokens does the AI need to generate an equivalent document?"
+      }
+      li {
+        bold { "Typography quality — " }
+        "Kerning, hyphenation, widow/orphan control, justification quality."
+      }
+    }
+
+    space(size: 10)
+
+    // ── 3. Results ───────────────────────────────────────────
+    h1(id: "results") { "3. Results" }
+
+    h2(id: "validity") { "3.1 First-Attempt Validity" }
+
+    p {
+      "As shown in "
+      ref(to: "validity-table") { "Table 2" }
+      ", Dok achieved the highest first-attempt validity rate across both models."
+    }
+
+    p(id: "validity-table") { bold { "Table 2 — First-Attempt Validity by Format and Model" } }
+
+    table(border: true, striped: true) {
+      tr {
+        th { "Format" }
+        th { "Claude Sonnet" }
+        th { "GPT-4o" }
+        th { "Average" }
+        th { "RTL Correct" }
+      }
+      tr {
+        td { bold { "Dok" } }
+        td { bold(color: green) { "94%" } }
+        td { bold(color: green) { "92%" } }
+        td { bold(color: green) { "93%" } }
+        td { bold(color: green) { "✓ 100%" } }
+      }
+      tr {
+        td { "python-docx" }
+        td { bold(color: orange) { "63%" } }
+        td { bold(color: orange) { "61%" } }
+        td { bold(color: orange) { "62%" } }
+        td { bold(color: red)    { "✗ 12%" } }
+      }
+      tr {
+        td { "LaTeX" }
+        td { bold(color: orange) { "68%" } }
+        td { bold(color: orange) { "65%" } }
+        td { bold(color: orange) { "67%" } }
+        td { bold(color: orange) { "~ 61%" } }
+      }
+      tr {
+        td { "Markdown + Pandoc" }
+        td { bold(color: green)  { "98%" } }
+        td { bold(color: green)  { "97%" } }
+        td { bold(color: green)  { "98%" } }
+        td { bold(color: red)    { "✗ 8%"  } }
+      }
+      tr {
+        td { "HTML" }
+        td { bold(color: green)  { "95%" } }
+        td { bold(color: green)  { "93%" } }
+        td { bold(color: green)  { "94%" } }
+        td { bold(color: orange) { "~ 44%" } }
+      }
+    }
+
+    space(size: 8)
+
+    box(fill: #EAFAF1, stroke: #1E8449, accent: #1E8449) {
+      bold(color: #1E8449) { "Insight: " }
+      p {
+        """
+        Markdown achieves the highest raw validity (98%) because all outputs
+        are syntactically valid by definition. However, its RTL correctness
+        rate of 8% means it fails on nearly every Arabic document. High
+        validity without RTL is not useful for global document generation.
+        """
+      }
+    }
+
+    h2(id: "token-efficiency") { "3.2 Token Efficiency" }
+
+    p {
+      """
+      Token count directly affects API cost, generation latency, and
+      hallucination probability. Longer outputs have more sites where
+      errors can occur. The following measurements use the cl100k_base
+      tokenizer across 400 equivalent invoice documents.
+      """
+    }
+
+    table(border: true, striped: true) {
+      tr {
+        th { "Format" }
+        th { "Mean tokens" }
+        th { "Min" }
+        th { "Max" }
+        th { "vs Dok" }
+      }
+      tr {
+        td { bold { "Dok" } }
+        td { bold(color: green) { "48" } }
+        td { "31" }
+        td { "89" }
+        td { bold(color: green) { "baseline" } }
+      }
+      tr {
+        td { "python-docx" }
+        td { "312" }
+        td { "201" }
+        td { "580" }
+        td { bold(color: red) { "6.5×" } }
+      }
+      tr {
+        td { "LaTeX" }
+        td { "284" }
+        td { "198" }
+        td { "490" }
+        td { bold(color: red) { "5.9×" } }
+      }
+      tr {
+        td { "HTML" }
+        td { "198" }
+        td { "140" }
+        td { "390" }
+        td { bold(color: orange) { "4.1×" } }
+      }
+      tr {
+        td { "Markdown" }
+        td { "62" }
+        td { "40" }
+        td { "110" }
+        td { bold(color: orange) { "1.3×" } }
+      }
+    }
+
+    space(size: 10)
+
+    // ── 4. RTL Deep Dive ─────────────────────────────────────
+    h1(id: "rtl") { "4. RTL and Arabic Support" }
+
+    p {
+      """
+      Right-to-left document generation is the most consistently broken
+      feature across all evaluated tools. The following section demonstrates
+      correct RTL rendering in Dok — this entire section was generated
+      from the same .dok source file as the rest of this report.
+      """
+    }
+
+    // Arabic content with full RTL
+    box(fill: #F8F9FA, stroke: #CCCCCC, rounded: true) {
+
+      center { bold(color: #1F3864) { "Arabic Section — القسم العربي" } }
+      space(size: 8)
+
+      rtl {
+
+        h2 { "٤.١ نتائج اللغة العربية" }
+
+        p {
+          """
+          تُظهر نتائج هذه الدراسة أن معظم أدوات توليد المستندات
+          تفشل في التعامل مع النص العربي بشكل صحيح. المشكلة الرئيسية
+          تكمن في ترتيب عناصر XML في تنسيق OOXML.
+          """
+        }
+
+        // RTL table with per-cell direction
+        table(border: true, striped: true) {
+          tr {
+            th { "الأداة" }
+            th { "معدل النجاح" }
+            th { "دعم RTL" }
+          }
+          tr {
+            td { bold { "Dok" } }
+            td(align: center) { bold(color: green) { "٩٤٪" } }
+            td(align: center) { bold(color: green) { "✓ كامل" } }
+          }
+          tr {
+            td { "python-docx" }
+            td(align: center) { bold(color: red) { "١٢٪" } }
+            td(align: center) { bold(color: red) { "✗ معطوب" } }
+          }
+          tr {
+            td { "LaTeX" }
+            td(align: center) { bold(color: orange) { "٦١٪" } }
+            td(align: center) { bold(color: orange) { "~ جزئي" } }
+          }
+        }
+
+        space(size: 8)
+
+        // Mixed direction inside RTL
+        p {
+          "النص العربي مع مصطلح إنجليزي: "
+          ltr { bold(color: #1F3864) { "bidirectional algorithm" } }
+          " يعمل بشكل صحيح."
+        }
+
+        p {
+          "الحالة: "
+          bold(color: green) { "مُختبَر ومعتمد" }
+          " — "
+          italic { "مارس ٢٠٢٦" }
+        }
+
+      }
+    }
+
+    space(size: 10)
+
+    // ── 5. Feature Comparison ────────────────────────────────
+    h1(id: "features") { "5. Feature Comparison" }
+
+    p {
+      "The following table compares "
+      ref(to: "methodology") { "evaluated tools" }
+      " across the features most relevant to AI document generation:"
+    }
+
+    table(border: true, striped: true) {
+      tr {
+        th { "Feature" }
+        th { "Dok" }
+        th { "python-docx" }
+        th { "LaTeX" }
+        th { "Markdown" }
+      }
+      tr {
+        td { "RTL native" }
+        td(align: center, fill: #EAFAF1) { bold(color: green) { "✓" } }
+        td(align: center) { bold(color: red) { "✗" } }
+        td(align: center) { bold(color: orange) { "~" } }
+        td(align: center) { bold(color: red) { "✗" } }
+      }
+      tr {
+        td { "DOCX output" }
+        td(align: center, fill: #EAFAF1) { bold(color: green) { "✓" } }
+        td(align: center) { bold(color: green) { "✓" } }
+        td(align: center) { bold(color: red) { "✗" } }
+        td(align: center) { bold(color: orange) { "~" } }
+      }
+      tr {
+        td { "HTML output" }
+        td(align: center, fill: #EAFAF1) { bold(color: green) { "✓" } }
+        td(align: center) { bold(color: red) { "✗" } }
+        td(align: center) { bold(color: red) { "✗" } }
+        td(align: center) { bold(color: green) { "✓" } }
+      }
+      tr {
+        td { "Zero dependencies" }
+        td(align: center, fill: #EAFAF1) { bold(color: green) { "✓" } }
+        td(align: center) { bold(color: red) { "✗" } }
+        td(align: center) { bold(color: red) { "✗" } }
+        td(align: center) { bold(color: green) { "✓" } }
+      }
+      tr {
+        td { "AI grammar fits prompt" }
+        td(align: center, fill: #EAFAF1) { bold(color: green) { "✓" } }
+        td(align: center) { bold(color: red) { "✗" } }
+        td(align: center) { bold(color: red) { "✗" } }
+        td(align: center) { bold(color: green) { "✓" } }
+      }
+      tr {
+        td { "Self-correcting errors" }
+        td(align: center, fill: #EAFAF1) { bold(color: green) { "✓" } }
+        td(align: center) { bold(color: red) { "✗" } }
+        td(align: center) { bold(color: orange) { "~" } }
+        td(align: center) { bold(color: red) { "✗" } }
+      }
+      tr {
+        td { "TOC + anchors" }
+        td(align: center, fill: #EAFAF1) { bold(color: green) { "✓" } }
+        td(align: center) { bold(color: orange) { "~" } }
+        td(align: center) { bold(color: green) { "✓" } }
+        td(align: center) { bold(color: orange) { "~" } }
+      }
+      tr {
+        td { "Typography control" }
+        td(align: center, fill: #EAFAF1) { bold(color: green) { "✓" } }
+        td(align: center) { bold(color: orange) { "~" } }
+        td(align: center) { bold(color: green) { "✓" } }
+        td(align: center) { bold(color: red) { "✗" } }
+      }
+    }
+
+    space(size: 10)
+
+    // ── 6. Code examples ─────────────────────────────────────
+    h1(id: "code") { "6. Code Examples" }
+
+    h2 { "6.1 Generating a Document with Dok + Claude" }
+
+    p {
+      "The following example demonstrates the "
+      ref(to: "token-efficiency") { "token-efficient" }
+      " approach to AI document generation:"
+    }
+
+    code {
+      """
+      import dok
+      import anthropic
+
+      SYSTEM = \"\"\"
+      Generate documents in dok syntax only. One rule:
+        name(props) { children }
+      Layers: doc → page → layout → style → content
+      \"\"\"
+
+      client = anthropic.Anthropic()
+      response = client.messages.create(
+          model="claude-sonnet-4-5",
+          max_tokens=1024,
+          system=SYSTEM,
+          messages=[{"role": "user", "content": prompt}]
+      )
+
+      node = dok.parse(response.content[0].text)
+      dok.to_docx(node, "output.docx")
+      dok.to_html(node, "output.html")
+      """
+    }
+
+    h2 { "6.2 The python-docx equivalent for RTL" }
+
+    p { "For reference — what Dok replaces for a single Arabic paragraph:" }
+
+    code {
+      """
+      # python-docx — 13 lines for one RTL paragraph
+      # breaks silently if element order is wrong
+
+      p = doc.add_paragraph()
+      pPr = p._p.get_or_add_pPr()
+      bidi = OxmlElement('w:bidi')
+      pPr.insert(0, bidi)
+      jc = OxmlElement('w:jc')
+      jc.set(qn('w:val'), 'right')
+      pPr.append(jc)
+      run = p.add_run('مرحبا')
+      rPr = run._r.get_or_add_rPr()
+      rPr.append(OxmlElement('w:rtl'))
+      lang = OxmlElement('w:lang')
+      lang.set(qn('w:bidi'), 'ar-SA')
+      rPr.append(lang)
+      """
+    }
+
+    p { "The Dok equivalent:" }
+
+    code { "rtl { p { \"مرحبا\" } }" }
+
+    space(size: 10)
+
+  }
+
+  // ── TWO-COLUMN SECTION ────────────────────────────────────
+  page(margin: normal, cols: 2, paper: a4) {
+
+    h1(id: "recommendations") { "7. Recommendations" }
+
+    h2 { "7.1 For AI Engineers" }
+
+    p {
+      """
+      Choose your intermediate format before choosing your AI model.
+      The format determines the error rate more than the model does.
+      A compact, unambiguous grammar with structured error feedback
+      will outperform a more capable model using a verbose format.
+      """
+    }
+
+    ul {
+      li { "Use Dok for DOCX and HTML output" }
+      li { "Use Typst for PDF and academic output" }
+      li { "Avoid python-docx as a direct AI output target" }
+      li { "Never use raw OOXML as an AI output target" }
+    }
+
+    h2 { "7.2 For Arabic Document Generation" }
+
+    p {
+      """
+      RTL is not optional for Arabic markets. A tool that produces
+      left-aligned Arabic output has failed regardless of its other
+      qualities. Only Dok and Typst (with bidi package) produce
+      consistently correct RTL output from AI generation.
+      """
+    }
+
+    callout(fill: #FFF3CD, stroke: #FFC107, tail: top-left) {
+      bold { "Warning: " }
+      """
+      Never use Markdown + Pandoc for Arabic documents.
+      The 8% RTL correctness rate means 92 out of 100
+      Arabic documents will render incorrectly.
+      """
+    }
+
+    h2 { "7.3 For Enterprise Adoption" }
+
+    p {
+      """
+      Stability and versioning matter more than features for
+      enterprise adoption. A tool at 1.0.0 with a clear
+      deprecation policy is more valuable than a feature-rich
+      tool at 0.x with no stability guarantees.
+      """
+    }
+
+    ol {
+      li { "Require semantic versioning and a changelog" }
+      li { "Test your specific document types before committing" }
+      li { "Evaluate RTL correctness even for LTR-primary deployments" }
+      li { "Benchmark token costs at your expected document volume" }
+    }
+
+  }
+
+  // ── SINGLE COLUMN AGAIN ───────────────────────────────────
+  page(margin: normal, cols: 1, paper: a4) {
+
+    // ── 8. Layout features showcase ──────────────────────────
+    h1(id: "layout-showcase") { "8. Layout Features Showcase" }
+
+    h2 { "8.1 Column layouts with new props" }
+
+    cols(ratio: 1:2:1, gap: 12, padding: 8) {
+      col(fill: #EBF5FB) {
+        bold(color: #1F3864) { "Narrow" }
+        p(spacing: compact, size: 9) { "Left column with light blue fill and 8pt padding." }
+      }
+      col(fill: #EAFAF1) {
+        bold(color: #1E8449) { "Wide center" }
+        p(spacing: compact, size: 9) {
+          """
+          This center column is twice as wide as the side columns.
+          Uses ratio: 1:2:1 with gap: 12 between columns.
+          """
+        }
+      }
+      col(fill: #FEF9E7) {
+        bold(color: #9A7D0A) { "Narrow" }
+        p(spacing: compact, size: 9) { "Right column with yellow fill." }
+      }
+    }
+
+    space(size: 10)
+
+    h2 { "8.2 Process flow with shapes" }
+
+    row {
+      box(fill: #2E74B5, color: white, rounded: true) {
+        center {
+          bold { "Input" }
+          italic(size: 9) { "natural language" }
+        }
+      }
+      ->
+      box(fill: #70AD47, color: white, rounded: true) {
+        center {
+          bold { "LLM" }
+          italic(size: 9) { "generates .dok" }
+        }
+      }
+      ->
+      box(fill: #ED7D31, color: white, rounded: true) {
+        center {
+          bold { "Validator" }
+          italic(size: 9) { "checks + fixes" }
+        }
+      }
+      ->
+      box(fill: #1F3864, color: white, rounded: true) {
+        center {
+          bold { "Compiler" }
+          italic(size: 9) { "DOCX + HTML" }
+        }
+      }
+    }
+
+    space(size: 10)
+
+    h2 { "8.3 Typography — spacing variants" }
+
+    p { bold { "compact spacing:" } }
+    p(spacing: compact) { "First paragraph — compact. No gap after." }
+    p(spacing: compact) { "Second paragraph — sits immediately below." }
+
+    space(size: 6)
+
+    p { bold { "normal spacing (default):" } }
+    p(spacing: normal) { "First paragraph — normal Word spacing." }
+    p(spacing: normal) { "Second paragraph — standard gap." }
+
+    space(size: 6)
+
+    p { bold { "relaxed spacing:" } }
+    p(spacing: relaxed) { "First paragraph — generous breathing room." }
+    p(spacing: relaxed) { "Second paragraph — comfortable for long-form reading." }
+
+    space(size: 6)
+
+    p { bold { "line-height variants:" } }
+    p(line-height: 10) { "Single spaced — line-height: 10. Dense, compact, minimal vertical rhythm." }
+    p(line-height: 15) { "1.5× spaced — line-height: 15. Standard for body text in most documents." }
+    p(line-height: 20) { "Double spaced — line-height: 20. Required for legal and academic submissions." }
+
+    space(size: 10)
+
+    h2 { "8.4 All visual container types" }
+
+    box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
+      bold { "box — rounded with stroke" }
+      p(spacing: compact) { "Standard bordered container. Use for info, callouts, highlights." }
+    }
+
+    space(size: 6)
+
+    box(fill: #FFF8E1, accent: #FFB300) {
+      bold { "box — with accent border (new)" }
+      p(spacing: compact) { "Left accent bar instead of full stroke. Use for warnings and notes." }
+    }
+
+    space(size: 6)
+
+    box(fill: #EAFAF1, accent: #1E8449) {
+      bold(color: #1E8449) { "box — green accent" }
+      p(spacing: compact) { "Accent color matches text color for a cohesive look." }
+    }
+
+    space(size: 6)
+
+    box(fill: #F9EBEA, accent: #C0392B) {
+      bold(color: #C0392B) { "box — red accent (danger/error)" }
+      p(spacing: compact) { "For error states, critical warnings, or required notices." }
+    }
+
+    space(size: 6)
+
+    p {
+      "Inline badges: "
+      badge(fill: green,   color: white) { "PASS" }
+      " "
+      badge(fill: orange,  color: white) { "WARN" }
+      " "
+      badge(fill: red,     color: white) { "FAIL" }
+      " "
+      badge(fill: #1F3864, color: white) { "INFO" }
+      " "
+      badge(fill: #7030A0, color: white) { "NEW" }
+    }
+
+    space(size: 6)
+
+    line(stroke: gray)
+    space(size: 4)
+    line(stroke: #1F3864, thick: true)
+    space(size: 4)
+    line(stroke: gray, dashed: true)
+
+    space(size: 10)
+
+    h2 { "8.5 Exact margins (new)" }
+
+    p {
+      """
+      This document uses standard margins throughout. Exact margin
+      control allows per-page overrides for cover pages, certificates,
+      and print-specific layouts. Example syntax:
+      """
+    }
+
+    code {
+      """
+      // Standard margins
+      page(margin: normal) { ... }
+
+      // Exact override — narrow sides, tall top
+      page(margin: narrow, margin-top: 144) { ... }
+
+      // No margins — full bleed
+      page(margin: none) { ... }
+      """
+    }
+
+    space(size: 10)
+
+    // ── 9. Links showcase ────────────────────────────────────
+    h1(id: "links") { "9. Links and References" }
+
+    h2 { "9.1 External links" }
+
+    p {
+      "Source code available at "
+      link(href: "https://github.com/mahmoudxyz/dok") { "github.com/mahmoudxyz/dok" }
+      ". Install via "
+      link(href: "https://pypi.org/project/dok") { bold { "pip install dok" } }
+      ". Report issues at "
+      link(href: "https://github.com/mahmoudxyz/dok/issues") { "the issue tracker" }
+      "."
+    }
+
+    h2 { "9.2 Email links" }
+
+    p {
+      "Contact the research team at "
+      link(href: "mailto:research@dok-lang.dev") { "research@dok-lang.dev" }
+      " for access to the full dataset."
+    }
+
+    h2 { "9.3 Internal cross-references" }
+
+    p {
+      "This section summarizes findings detailed in "
+      ref(to: "results") { "Section 3 (Results)" }
+      ", "
+      ref(to: "rtl") { "Section 4 (RTL)" }
+      ", and "
+      ref(to: "recommendations") { "Section 7 (Recommendations)" }
+      ". The methodology is described in "
+      ref(to: "test-suite") { "Section 2.1" }
+      "."
+    }
+
+    space(size: 10)
+
+    // ── 10. Conclusion ───────────────────────────────────────
+    h1(id: "conclusion") { "10. Conclusion" }
+
+    p {
+      """
+      The 2026 State of Document Generation report confirms that format
+      choice is a first-order engineering decision in AI document pipelines.
+      Tools designed for AI generation — compact grammars, structured errors,
+      RTL as a first-class concern — outperform human-authoring tools
+      significantly across all measured dimensions.
+      """
+    }
+
+    p {
+      """
+      Dok compiled this 200-page benchmark report in 2 seconds using pure
+      Python stdlib with zero external dependencies. The same source file
+      produced both the DOCX and HTML versions of this report without
+      any manual reformatting.
+      """
+    }
+
+    box(fill: #1F3864, color: white, accent: gold) {
+      center {
+        bold(size: 13) { "The right abstraction layer eliminates entire classes of errors." }
+        space(size: 4)
+        italic(size: 10) { "Write structure. Let AI fill it. Compile to anything." }
+      }
+    }
+
+    space(size: 20)
+
+    // Signature block
+    line(stroke: #1F3864)
+    space(size: 6)
+
+    cols(ratio: 1:1:1) {
+      col { center { line  color(value: gray, size: 9) { "Lead Researcher" } } }
+      col { center { line  color(value: gray, size: 9) { "Technical Reviewer" } } }
+      col { center { line  color(value: gray, size: 9) { "Editor in Chief" } } }
+    }
+
+    space(size: 12)
+
+    center {
+      italic(color: gray, size: 8) {
+        "This document was written entirely in dok and compiled to DOCX and HTML from the same source file."
+      }
+      italic(color: gray, size: 8) {
+        "No Word was opened. No HTML was written by hand. No python-docx was touched."
+      }
+    }
+
+  }
+}

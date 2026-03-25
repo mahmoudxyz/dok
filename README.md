@@ -43,7 +43,7 @@ A complete invoice. AI generates this:
 doc(font: Calibri, size: 11) {
   page(margin: normal) {
 
-    banner(fill: #1F3864, accent: gold, color: white) {
+    box(fill: #1F3864, color: white) {
       center { bold(size: 16) { "INVOICE" } }
     }
 
@@ -141,7 +141,7 @@ Dok has five layers — each node belongs to exactly one:
   page   → physical space (margin, paper, cols)
   layout → arrangement (center, right, rtl, ltr, indent, row, cols)
   style  → appearance (bold, italic, underline, color, size, font, highlight)
-  content → atoms (h1-h4, p, code, ul/ol/li, table/tr/th/td, box, banner, callout, badge, line, img, link)
+  content → atoms (h1-h4, p, code, ul/ol/li, table/tr/th/td, box, badge, line, img, link, toc, ref)
 
 One syntax rule: name(props) { children }
 Text is always quoted: "like this"
@@ -228,7 +228,7 @@ doc     →  document defaults    (font, size, spacing)
 page    →  physical space       (margin, paper, cols)
 layout  →  arrangement          (center, right, rtl, row, cols, indent)
 style   →  appearance           (bold, italic, color, size, font)
-content →  atoms                (h1-h4, p, code, box, line, table, ul/ol, img, link)
+content →  atoms                (h1-h4, p, code, box, line, table, ul/ol, img, link, toc, ref)
 ```
 
 ---
@@ -258,19 +258,21 @@ The boundary is clean. The compiler is simple. The output is predictable.
 | **Strings** | Single-line `"..."`, multiline `"""..."""` with auto-dedent |
 | **Styles** | Bold, italic, underline, strikethrough, superscript, subscript, color, font, size, highlight |
 | **Layout** | Center, right, justify, RTL/LTR, indent, columns, float |
-| **Columns** | `page(cols: 2)` for newspaper-style flow, `cols(ratio: 2:1)` for side-by-side layout |
-| **Containers** | Box (width/height), callout, banner, badge |
+| **Columns** | `page(cols: 2)` for newspaper-style, `cols(ratio: 2:1, gap: 12)` for side-by-side |
+| **Containers** | Box (fill, stroke, accent, rounded, shadow, width/height), badge |
 | **Lists** | Bullet (ul/li), numbered (ol/li) |
-| **Tables** | Headers, borders, striped rows, colspan |
+| **Tables** | Headers, borders, striped, colspan, per-cell align/direction/fill, RTL column order |
 | **Images** | PNG/JPEG embedded in DOCX, inline in HTML |
 | **Links** | Clickable hyperlinks, styled content inside links |
 | **Shapes** | Circle, diamond, chevron with arrow connectors |
-| **Page control** | Page breaks, page numbers, headers, footers, spacers |
+| **Page control** | Page breaks, page numbers, headers, footers, spacers, exact margins/padding |
+| **Navigation** | Table of contents (`toc`), internal anchors (`id`), cross-references (`ref`) |
+| **Typography** | Kerning, ligatures, widow/orphan control, hyphenation |
 | **Spacing** | Document-wide presets, per-paragraph override, line-height control |
 | **Code** | Syntax-preserving blocks, monospace, background, border |
 | **Functions** | Reusable components with parameters and `children` |
 | **Imports** | Split documents into modules with `import "file.dok"` |
-| **Direction** | Full RTL for Arabic/Hebrew with `rtl { }` |
+| **Direction** | Full RTL for Arabic/Hebrew — text, tables, column order |
 | **Validation** | Prop types, structure rules, all errors with source location and fix hints |
 
 ---
@@ -340,6 +342,20 @@ doc(font: Calibri, size: 11) {
 | `font` | any system font name | `Calibri` |
 | `size` | number in points | `11` |
 | `spacing` | `compact` `tight` `normal` `relaxed` | `normal` |
+| `kerning` | boolean | `true` |
+| `ligatures` | boolean | `true` |
+| `widow-orphan` | integer (min lines) | `2` |
+| `hyphenate` | boolean | `false` |
+
+Typography is on by default. Kerning adjusts letter spacing for visual balance. Widow/orphan control prevents isolated lines at page breaks. Hyphenation enables automatic word breaking for justified text.
+
+```
+doc(kerning: true, hyphenate: true, widow-orphan: 3) {
+  page {
+    justify { p { "Long justified paragraph..." } }
+  }
+}
+```
 
 Spacing presets control paragraph spacing and line height across the whole document:
 
@@ -373,6 +389,22 @@ doc {
 | `margin` | `normal` `narrow` `wide` `none` | `normal` |
 | `paper` | `a4` `letter` `a3` | `a4` |
 | `cols` | `1` `2` `3` | `1` |
+| `margin-top` | points | preset |
+| `margin-right` | points | preset |
+| `margin-bottom` | points | preset |
+| `margin-left` | points | preset |
+| `padding-top` | points | preset |
+| `padding-right` | points | preset |
+| `padding-bottom` | points | preset |
+| `padding-left` | points | preset |
+
+Exact margins override the preset. Mix and match:
+
+```
+page(margin: narrow, margin-top: 72) {
+  // narrow on all sides except top = 1 inch
+}
+```
 
 `cols: 2` creates newspaper-style columns: text flows down the left column then continues at the top of the right. This is native Word section columns — ideal for research papers, newsletters, and academic documents.
 
@@ -417,7 +449,19 @@ cols(ratio: 2:1) {
   col { p { "Wider column." } }
   col { p { "Narrower column." } }
 }
+
+cols(ratio: 1:2:1, gap: 12, padding: 8) {
+  col(fill: #F5F5F5) { p { "Left" } }
+  col(align: center) { p { "Center" } }
+  col { p { "Right" } }
+}
 ```
+
+**cols props:** `ratio`, `gap` (pt between columns), `padding` (pt inside cells), `border`, `fill`.
+
+**col props:** `padding` (per-column override), `fill` (background), `align` (`left` `center` `right`).
+
+If the ratio has fewer parts than columns, the last value repeats. `cols(ratio: 1:2)` with 3 cols becomes `1:2:2`.
 
 | Node | What it does |
 |------|-------------|
@@ -553,6 +597,28 @@ table(border: true, striped: true) {
 
 `th` cells are bold with a shaded background. `td(colspan: 2)` spans columns.
 
+**Cell and row props:**
+
+| Element | Prop | Values |
+|---------|------|--------|
+| `td`/`th` | `colspan` | integer |
+| `td`/`th` | `align` | `left` `center` `right` |
+| `td`/`th` | `direction` | `rtl` `ltr` |
+| `td`/`th` | `fill` | color |
+| `tr` | `align` | `left` `center` `right` |
+| `tr` | `direction` | `rtl` `ltr` |
+
+**RTL tables:** When a table is inside an `rtl { }` block, column order is automatically reversed. In DOCX this uses `bidiVisual`, in HTML it uses `dir="rtl"`.
+
+```
+rtl {
+  table(border: true) {
+    tr { th { "الاسم" } th { "الدرجة" } }
+    tr { td { "أحمد" } td { "٩٥" } }
+  }
+}
+```
+
 **Images:**
 
 ```
@@ -595,11 +661,13 @@ Links render as blue (#0563C1) underlined text in both DOCX and HTML. In DOCX th
 
 | Node | Description |
 |------|-------------|
-| `box` | Bordered/shaded content block |
-| `callout` | Side-bordered note block |
-| `banner` | Full-width colored block |
+| `box` | Universal content container — bordered, shaded, accent |
+| `callout` | Box preset: warm fill + left accent border |
+| `banner` | Box preset: bold fill + left accent border |
 | `badge` | Small inline label |
 | `line` | Horizontal divider |
+
+`callout` and `banner` are just `box` with different default colors. All three render identically — as bordered containers. Use `accent` for a thick left border.
 
 ```
 box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
@@ -607,39 +675,37 @@ box(fill: #E8F4FD, stroke: #2196F3, rounded: true) {
   p { "Content inside the box." }
 }
 
-callout(fill: #FFF3CD, stroke: #FFC107, tail: top-left) {
-  bold { "Warning:" }
+box(fill: #FFF8E1, accent: #FFB300) {
+  bold { "Note:" }
   " Check your input data."
 }
 
-banner(fill: #1F3864, accent: gold, color: white) {
-  center { bold(size: 16) { "Company Name" } }
-}
+callout { bold { "Warning" } " Something needs attention." }
 
 p { "Status: " badge(fill: green, color: white) { "ACTIVE" } }
 
 line(stroke: gray, dashed: true)
 ```
 
-**Shape props:**
+**Box props:**
 
 | Prop | Values | Description |
 |------|--------|-------------|
 | `fill` | color | Background color |
 | `stroke` | color | Border color |
 | `color` | color | Text color inside |
-| `rounded` | flag | Rounded corners (box only) |
+| `accent` | color | Thick left border (4px) |
+| `rounded` | flag | Rounded corners |
 | `shadow` | flag | Drop shadow |
-| `accent` | color | Left-edge accent bar (banner only) |
-| `width` | integer | Box width as % of page (1–100), default = full |
+| `width` | integer | Width as % of page (1–100), default = full |
 | `height` | integer | Minimum height in points, default = auto |
-| `tail` | `top-left` `top-right` `bottom-left` `bottom-right` | Callout pointer |
-| `dashed` | flag | Dashed line |
-| `thick` | flag | Thick line |
+| `dashed` | flag | Dashed line (line only) |
+| `thick` | flag | Thick line (line only) |
 
 ```
 box(fill: #E8F4FD, width: 50)   { p { "Half-width box." } }
 box(fill: #FFF2CC, height: 120) { p { "At least 120pt tall." } }
+box(accent: navy, fill: #E8EAF6) { p { "Accent left border." } }
 ```
 
 **Page numbers:**
@@ -677,6 +743,25 @@ doc {
 ```
 space(size: 24)    // 24pt vertical space
 ```
+
+**Table of contents:**
+
+```
+toc(depth: 3, title: "Contents")
+```
+
+Auto-generates a linked table of contents from all headings. `depth` controls max heading level (default 4). In DOCX, entries are bookmarked hyperlinks. In HTML, entries are anchor links.
+
+**Anchors and references:**
+
+Headings get automatic bookmarks. Add explicit IDs with the `id` prop:
+
+```
+h2(id: "methods") { "Methods" }
+p { "As described in " ref(to: "methods") { "the Methods section" } "." }
+```
+
+`ref` creates an internal hyperlink to any element with a matching `id` or auto-generated heading bookmark.
 
 **Color values:**
 
@@ -735,7 +820,7 @@ Split large documents into reusable modules:
 ```
 // components.dok
 def company-header(title) {
-  banner(fill: #1F3864, accent: gold, color: white) {
+  box(fill: #1F3864, color: white) {
     center { bold(size: 16) { title } }
   }
 }
@@ -776,7 +861,7 @@ import dok
 
 doc = dok.doc(
     dok.page(
-        dok.banner("Acme Corp", fill="#1F3864", accent="gold", color="white"),
+        dok.box(dok.center(dok.bold("Acme Corp", size=16)), fill="#1F3864", color="white"),
         dok.h1("Report"),
         dok.p("Revenue grew by ", dok.bold("42%", color="green"), "."),
         margin="normal",
@@ -839,9 +924,8 @@ dok.table(
 )
 
 # Visual elements
-dok.box(*children, fill=..., stroke=..., rounded=True)
-dok.callout(*children, fill=..., stroke=..., tail="top-left")
-dok.banner(*children, fill=..., accent=..., color=...)
+dok.box(*children, fill=..., stroke=..., accent=..., rounded=True)
+dok.callout(*children, fill=..., stroke=...)
 dok.badge("label", fill=..., color=...)
 dok.line(stroke=..., dashed=True)
 
@@ -849,6 +933,10 @@ dok.line(stroke=..., dashed=True)
 dok.img("photo.png", width=4)
 dok.link("https://example.com", "click here")
 dok.page_number()
+
+# Navigation
+dok.toc(depth=4, title="Table of Contents")
+dok.ref(to="section-id", "display text")
 
 # Meta
 dok.header(*children)
@@ -868,7 +956,7 @@ doc = dok.doc(dok.ul(*items))
 # Conditionals — None children are silently dropped
 doc = dok.doc(
     dok.page(
-        dok.callout("CONFIDENTIAL", fill="red", color="white") if classified else None,
+        dok.box("CONFIDENTIAL", fill="red", color="white") if classified else None,
         dok.h1(report.title),
         *[dok.p(section.text) for section in report.sections],
     )
@@ -953,7 +1041,7 @@ doc(font: Calibri, size: 11) {
 
   page(margin: normal) {
 
-    banner(fill: #1F3864, accent: gold, color: white) {
+    box(fill: #1F3864, color: white) {
       center { bold(size: 16) { "Acme Corporation" } }
     }
 
@@ -979,7 +1067,7 @@ doc(font: Calibri, size: 11) {
 
     space(size: 12)
 
-    callout(fill: #FFF2CC, stroke: #FFC000, tail: bottom-left) {
+    box(fill: #FFF8E1, accent: #FFB300) {
       bold { "Note:" }
       p { "These figures are preliminary and subject to audit." }
     }

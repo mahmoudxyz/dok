@@ -21,7 +21,7 @@ from .docx_packaging import (
     W_NS as _W_NS, R_NS as _R_NS, A_NS as _A_NS,
     WPS_URI as _WPS_URI, PIC_URI as _PIC_URI,
     DOCUMENT_NS as _NS, PACKAGE_RELS as _RELS, SETTINGS_XML as _SETTINGS,
-    build_numbering_xml, build_doc_rels, build_content_types,
+    build_numbering_xml, build_doc_rels, build_content_types, build_settings_xml,
 )
 from .docx_styles import build_styles_xml
 from .models import (
@@ -31,9 +31,11 @@ from .models import (
     LineModel, BoxModel,
     DataTableModel, DataTableRowModel, DataTableCellModel,
     ImageModel, SpacerModel, HeaderModel, FooterModel,
+    TocModel, TocEntry,
 )
 from .writer_utils import group_runs_by_hyperlink
 from .xml_writer import XmlWriter
+from xml.sax.saxutils import escape as _xml_escape
 
 
 # ---------------------------------------------------------------------------
@@ -51,6 +53,11 @@ class DocxWriter:
         self._hyperlink_rels: list[tuple[str, str]] = []        # (relId, url)
         self._hyperlink_cache: dict[str, str] = {}              # url → relId
         self._image_counter = 0
+        self._bookmark_counter = 0
+
+    def _next_bookmark_id(self) -> int:
+        self._bookmark_counter += 1
+        return self._bookmark_counter
 
     def _next_rel_id(self) -> str:
         self._rel_id += 1
@@ -102,7 +109,8 @@ class DocxWriter:
             zf.writestr("_rels/.rels",                  _RELS)
             zf.writestr("word/document.xml",            doc_xml)
             zf.writestr("word/styles.xml",              self._build_styles_xml())
-            zf.writestr("word/settings.xml",            _SETTINGS)
+            settings = build_settings_xml(hyphenate=self._model.hyphenate)
+            zf.writestr("word/settings.xml",            settings)
             zf.writestr("word/_rels/document.xml.rels", doc_rels_xml)
 
             if numbering_xml:
@@ -159,12 +167,19 @@ class DocxWriter:
         RowModel:       "_write_row",
         TableModel:     "_write_table",
         PageBreakModel: "_write_page_break",
+        TocModel:       "_write_toc",
     }
 
     def _write_item(self, w: XmlWriter, item) -> None:
         handler = self._DISPATCH.get(type(item))
         if handler:
             getattr(self, handler)(w, item)
+
+    def _content_width(self) -> int:
+        """Content width in twips for the current section."""
+        section = self._model.sections[-1] if self._model.sections else SectionModel()
+        return content_width_twip(section.paper,
+                                  margins=section.resolved_margins(MARGIN_PRESETS))
 
     # ------------------------------------------------------------------
     # Paragraph
@@ -180,8 +195,15 @@ class DocxWriter:
 
     def _write_single_paragraph(self, w: XmlWriter, para: ParagraphModel) -> None:
         w.open("w:p")
+        # Bookmark start
+        if para.bookmark:
+            bm_id = str(self._next_bookmark_id())
+            w.tag("w:bookmarkStart", {"w:id": bm_id, "w:name": para.bookmark})
         self._write_para_props(w, para)
         self._write_runs_with_hyperlinks(w, para.runs)
+        # Bookmark end
+        if para.bookmark:
+            w.tag("w:bookmarkEnd", {"w:id": bm_id})
         w.close("w:p")
 
     def _write_para_props(self, w: XmlWriter, para: ParagraphModel,
@@ -190,6 +212,10 @@ class DocxWriter:
         w.open("w:pPr")
 
         w.tag("w:pStyle", {"w:val": para.style})
+
+        # Widow/orphan control
+        if self._model.widow_orphan > 0:
+            w.tag("w:widowControl", {})
 
         if para.align != "left":
             jc = {"center": "center", "right": "right",
@@ -263,8 +289,12 @@ class DocxWriter:
         """Write runs, grouping consecutive hyperlinked runs into <w:hyperlink>."""
         for url, group in group_runs_by_hyperlink(runs):
             if url:
-                rel_id = self._get_hyperlink_rel(url)
-                w.open("w:hyperlink", {"r:id": rel_id})
+                if url.startswith("#"):
+                    # Internal bookmark reference
+                    w.open("w:hyperlink", {"w:anchor": url[1:]})
+                else:
+                    rel_id = self._get_hyperlink_rel(url)
+                    w.open("w:hyperlink", {"r:id": rel_id})
                 for r in group:
                     self._write_run(w, r)
                 w.close("w:hyperlink")
@@ -312,6 +342,11 @@ class DocxWriter:
         va = "superscript" if run.sup else "subscript" if run.sub else None
         if va: w.tag("w:vertAlign", {"w:val": va})
         if run.rtl: w.tag("w:rtl", {})
+
+        # Kerning: apply to all runs when enabled
+        if self._model.kerning:
+            kern_pt = (run.size_pt or self._model.default_size_pt) * 2
+            w.tag("w:kern", {"w:val": str(kern_pt)})
 
         w.close("w:rPr")
         w.w_t(run.text)
@@ -384,15 +419,8 @@ class DocxWriter:
             self._write_badge_inline(w, box)
             return
 
-        # Banner/callout mode: accent paragraphs (content already styled by converter)
-        if box.accent and not box.rounded:
-            for item in box.content:
-                self._write_item(w, item)
-            return
-
-        # Standard box: table-cell container
-        section = self._model.sections[-1] if self._model.sections else SectionModel()
-        cw = content_width_twip(section.paper, section.margin)
+        # All boxes use the same table-cell rendering path
+        cw = self._content_width()
         box_w = (cw * box.width_pct // 100) if box.width_pct else cw
 
         w.open("w:tbl")
@@ -407,13 +435,26 @@ class DocxWriter:
         w.open("w:tblBorders")
         stroke_color = box.stroke or DEFAULT_BORDER_COLOR
         if box.stroke:
-            for side in ("top", "left", "bottom", "right"):
+            for side in ("top", "bottom", "right"):
                 w.tag(f"w:{side}", {"w:val": "single", "w:sz": "4",
                                     "w:space": "0", "w:color": stroke_color})
+            # Left border: thick accent or normal stroke
+            left_color = box.accent or stroke_color
+            left_sz = "24" if box.accent else "4"
+            w.tag("w:left", {"w:val": "single", "w:sz": left_sz,
+                              "w:space": "0", "w:color": left_color})
         else:
-            for side in ("top", "left", "bottom", "right"):
-                w.tag(f"w:{side}", {"w:val": "none", "w:sz": "0",
-                                    "w:space": "0", "w:color": "auto"})
+            if box.accent:
+                # No stroke but has accent: only left border visible
+                w.tag("w:left", {"w:val": "single", "w:sz": "24",
+                                  "w:space": "0", "w:color": box.accent})
+                for side in ("top", "bottom", "right"):
+                    w.tag(f"w:{side}", {"w:val": "none", "w:sz": "0",
+                                        "w:space": "0", "w:color": "auto"})
+            else:
+                for side in ("top", "left", "bottom", "right"):
+                    w.tag(f"w:{side}", {"w:val": "none", "w:sz": "0",
+                                        "w:space": "0", "w:color": "auto"})
         for side in ("insideH", "insideV"):
             w.tag(f"w:{side}", {"w:val": "none", "w:sz": "0",
                                 "w:space": "0", "w:color": "auto"})
@@ -470,8 +511,8 @@ class DocxWriter:
     # ------------------------------------------------------------------
 
     def _write_data_table(self, w: XmlWriter, table: DataTableModel) -> None:
-        section = self._model.sections[-1] if self._model.sections else SectionModel()
-        cw = content_width_twip(section.paper, section.margin)
+        cw = self._content_width()
+        is_rtl = table.direction == "rtl"
 
         # Determine number of columns from widest row
         max_cols = max((sum(c.colspan for c in r.cells) for r in table.rows), default=1)
@@ -480,6 +521,10 @@ class DocxWriter:
         w.open("w:tblPr")
         w.tag("w:tblW", {"w:w": str(cw), "w:type": "dxa"})
         w.tag("w:tblLayout", {"w:type": "fixed"})
+
+        # RTL column order
+        if is_rtl:
+            w.tag("w:bidiVisual", {})
 
         if table.border:
             w.open("w:tblBorders")
@@ -514,12 +559,12 @@ class DocxWriter:
                 if cell.colspan > 1:
                     w.tag("w:gridSpan", {"w:val": str(cell.colspan)})
 
-                # Header row: shaded background
-                if row.is_header:
+                # Cell background: explicit fill > header shading > striped
+                if cell.fill:
+                    w.tag("w:shd", {"w:val": "clear", "w:color": "auto", "w:fill": cell.fill})
+                elif row.is_header:
                     w.tag("w:shd", {"w:val": "clear", "w:color": "auto", "w:fill": "E8E8E8"})
-
-                # Striped rows
-                if table.striped and not row.is_header and row_idx % 2 == 0:
+                elif table.striped and not row.is_header and row_idx % 2 == 0:
                     w.tag("w:shd", {"w:val": "clear", "w:color": "auto", "w:fill": "F9F9F9"})
 
                 w.close("w:tcPr")
@@ -721,8 +766,7 @@ class DocxWriter:
         """Row of mixed content rendered as equal-width table columns."""
         if not row.items:
             return
-        section = self._model.sections[-1] if self._model.sections else SectionModel()
-        cw = content_width_twip(section.paper, section.margin)
+        cw = self._content_width()
         col_w = cw // len(row.items)
 
         w.open("w:tbl")
@@ -808,8 +852,11 @@ class DocxWriter:
     # ------------------------------------------------------------------
 
     def _write_table(self, w: XmlWriter, table: TableModel) -> None:
-        section = self._model.sections[-1] if self._model.sections else SectionModel()
-        cw = content_width_twip(section.paper, section.margin)
+        cw = self._content_width()
+        n_cells = max(len(r.cells) for r in table.rows) if table.rows else 1
+        total_gap = table.gap_twips * max(0, n_cells - 1)
+        usable_w = cw - total_gap
+
         w.open("w:tbl")
         w.open("w:tblPr")
         w.tag("w:tblW", {"w:w": str(cw), "w:type": "dxa"})
@@ -819,15 +866,37 @@ class DocxWriter:
                 w.tag(f"w:{side}", {"w:val": "none", "w:sz": "0",
                                     "w:space": "0", "w:color": "auto"})
             w.close("w:tblBorders")
+        # Cell margins (gap is implemented as cell margins on sides)
+        if table.gap_twips or table.cell_padding_twips:
+            half_gap = table.gap_twips // 2
+            pad = table.cell_padding_twips
+            w.open("w:tblCellMar")
+            w.tag("w:top",    {"w:w": str(pad), "w:type": "dxa"})
+            w.tag("w:left",   {"w:w": str(half_gap + pad), "w:type": "dxa"})
+            w.tag("w:bottom", {"w:w": str(pad), "w:type": "dxa"})
+            w.tag("w:right",  {"w:w": str(half_gap + pad), "w:type": "dxa"})
+            w.close("w:tblCellMar")
+        if table.fill:
+            w.tag("w:shd", {"w:val": "clear", "w:color": "auto", "w:fill": table.fill})
         w.close("w:tblPr")
 
         for tbl_row in table.rows:
             w.open("w:tr")
             total_pct = sum(c.width_pct for c in tbl_row.cells) or 100
             for cell in tbl_row.cells:
-                cell_w = int(cw * cell.width_pct / total_pct)
+                cell_w = int(usable_w * cell.width_pct / total_pct)
                 w.open("w:tc")
-                w.open("w:tcPr"); w.tag("w:tcW", {"w:w": str(cell_w), "w:type": "dxa"}); w.close("w:tcPr")
+                w.open("w:tcPr")
+                w.tag("w:tcW", {"w:w": str(cell_w), "w:type": "dxa"})
+                if cell.fill:
+                    w.tag("w:shd", {"w:val": "clear", "w:color": "auto", "w:fill": cell.fill})
+                if cell.padding_twips:
+                    w.open("w:tcMar")
+                    p = str(cell.padding_twips)
+                    for s in ("top", "left", "bottom", "right"):
+                        w.tag(f"w:{s}", {"w:w": p, "w:type": "dxa"})
+                    w.close("w:tcMar")
+                w.close("w:tcPr")
                 if not cell.content:
                     w.raw("<w:p/>")
                 else:
@@ -841,6 +910,44 @@ class DocxWriter:
         w.open("w:p"); w.open("w:pPr")
         w.tag("w:spacing", {"w:before": "0", "w:after": "0"})
         w.close("w:pPr"); w.close("w:p")
+
+    # ------------------------------------------------------------------
+    # Table of Contents
+    # ------------------------------------------------------------------
+
+    def _write_toc(self, w: XmlWriter, toc: TocModel) -> None:
+        # Title paragraph
+        w.open("w:p")
+        w.open("w:pPr")
+        w.tag("w:pStyle", {"w:val": "Heading1"})
+        w.tag("w:spacing", {"w:before": "0", "w:after": "200"})
+        w.close("w:pPr")
+        w.open("w:r")
+        w.open("w:rPr"); w.tag("w:b", {}); w.close("w:rPr")
+        w.raw(f"<w:t>{_xml_escape(toc.title)}</w:t>")
+        w.close("w:r")
+        w.close("w:p")
+
+        # TOC entries as hyperlinked paragraphs
+        for entry in toc.entries:
+            indent = (entry.level - 1) * 360  # twips indent per level
+            w.open("w:p")
+            w.open("w:pPr")
+            w.tag("w:pStyle", {"w:val": "Normal"})
+            if indent:
+                w.tag("w:ind", {"w:left": str(indent)})
+            w.tag("w:spacing", {"w:before": "20", "w:after": "20"})
+            w.close("w:pPr")
+            # Internal hyperlink via bookmark ref
+            w.open("w:hyperlink", {"w:anchor": entry.anchor})
+            w.open("w:r")
+            w.open("w:rPr")
+            w.tag("w:rStyle", {"w:val": "Hyperlink"})
+            w.close("w:rPr")
+            w.raw(f"<w:t>{_xml_escape(entry.text)}</w:t>")
+            w.close("w:r")
+            w.close("w:hyperlink")
+            w.close("w:p")
 
     # ------------------------------------------------------------------
     # Page break
@@ -860,7 +967,7 @@ class DocxWriter:
                        footer_rel_id: str | None = None) -> None:
         section = self._model.sections[-1] if self._model.sections else SectionModel()
         pw, ph  = PAPER_SIZES.get(section.paper, PAPER_SIZES["a4"])
-        margins = MARGIN_PRESETS.get(section.margin, MARGIN_PRESETS["normal"])
+        margins = section.resolved_margins(MARGIN_PRESETS)
 
         w.open("w:sectPr")
         if header_rel_id:

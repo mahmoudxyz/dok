@@ -60,10 +60,17 @@ PAPER_MAX_WIDTH_PX = {
 }
 
 
-def content_width_twip(paper: str = "a4", margin: str = "normal") -> int:
-    """Usable content width after subtracting left+right margins."""
+def content_width_twip(paper: str = "a4", margin: str = "normal",
+                       *, margins: dict[str, int] | None = None) -> int:
+    """Usable content width after subtracting left+right margins.
+
+    If *margins* dict is given, uses those exact values instead of preset lookup.
+    """
     pw, _ = PAPER_SIZES.get(paper, PAPER_SIZES["a4"])
-    m = MARGIN_PRESETS.get(margin, MARGIN_PRESETS["normal"])
+    if margins is not None:
+        m = margins
+    else:
+        m = MARGIN_PRESETS.get(margin, MARGIN_PRESETS["normal"])
     return pw - m["left"] - m["right"]
 
 

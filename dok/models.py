@@ -57,6 +57,7 @@ class ParagraphModel:
     border_left_sz: int          = 0
     num_id:       int            = 0      # list numbering ID (0 = none)
     num_ilvl:     int            = 0      # list nesting level
+    bookmark:     str | None     = None   # bookmark name for internal anchors
 
 
 # ---------------------------------------------------------------------------
@@ -124,8 +125,11 @@ class RowModel:
 
 @dataclass
 class TableModel:
-    rows:   list["TableRowModel"] = field(default_factory=list)
-    border: bool                  = False
+    rows:    list["TableRowModel"] = field(default_factory=list)
+    border:  bool                  = False
+    gap_twips: int                 = 0      # gap between columns (twips)
+    cell_padding_twips: int        = 0      # uniform cell padding (twips)
+    fill:    str | None            = None   # background color
 
 
 @dataclass
@@ -135,8 +139,11 @@ class TableRowModel:
 
 @dataclass
 class TableCellModel:
-    content:   list = field(default_factory=list)
-    width_pct: int  = 50
+    content:      list       = field(default_factory=list)
+    width_pct:    int        = 50
+    padding_twips: int       = 0      # per-cell padding override (twips)
+    fill:         str | None = None   # per-cell background color
+    align:        str | None = None   # per-cell alignment override
 
 
 # ---------------------------------------------------------------------------
@@ -145,9 +152,10 @@ class TableCellModel:
 
 @dataclass
 class DataTableModel:
-    rows:    list["DataTableRowModel"] = field(default_factory=list)
-    border:  bool = True
-    striped: bool = False
+    rows:      list["DataTableRowModel"] = field(default_factory=list)
+    border:    bool = True
+    striped:   bool = False
+    direction: str  = "ltr"    # table-level direction (affects column order)
 
 
 @dataclass
@@ -158,9 +166,12 @@ class DataTableRowModel:
 
 @dataclass
 class DataTableCellModel:
-    content: list = field(default_factory=list)
-    is_th:   bool = False
-    colspan: int  = 1
+    content:   list       = field(default_factory=list)
+    is_th:     bool       = False
+    colspan:   int        = 1
+    align:     str | None = None   # cell-level alignment override
+    direction: str | None = None   # cell-level direction override
+    fill:      str | None = None   # cell background color
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +206,22 @@ class PageBreakModel:
     pass
 
 
+@dataclass
+class TocEntry:
+    """One heading entry in the table of contents."""
+    text:     str
+    level:    int       # 1–4
+    anchor:   str       # bookmark name for linking
+
+
+@dataclass
+class TocModel:
+    """Table of contents placeholder — resolved by writers."""
+    depth:   int = 4            # max heading level to include
+    title:   str = "Table of Contents"
+    entries: list[TocEntry] = field(default_factory=list)
+
+
 # ---------------------------------------------------------------------------
 # Section & Document
 # ---------------------------------------------------------------------------
@@ -204,6 +231,25 @@ class SectionModel:
     margin: str = "normal"
     paper:  str = "a4"
     cols:   int = 1
+    # Exact margin overrides in twips (None = use preset)
+    margin_top:    int | None = None
+    margin_right:  int | None = None
+    margin_bottom: int | None = None
+    margin_left:   int | None = None
+    # Exact padding overrides in twips (None = use default)
+    padding_top:    int | None = None
+    padding_right:  int | None = None
+    padding_bottom: int | None = None
+    padding_left:   int | None = None
+
+    def resolved_margins(self, presets: dict[str, dict]) -> dict[str, int]:
+        """Return final margin dict, with exact overrides applied on top of preset."""
+        base = dict(presets.get(self.margin, presets["normal"]))
+        if self.margin_top    is not None: base["top"]    = self.margin_top
+        if self.margin_right  is not None: base["right"]  = self.margin_right
+        if self.margin_bottom is not None: base["bottom"] = self.margin_bottom
+        if self.margin_left   is not None: base["left"]   = self.margin_left
+        return base
 
 
 @dataclass
@@ -217,6 +263,11 @@ class DocxModel:
     footer:          FooterModel | None = None
     base_dir:        Path | None       = None
     has_lists:       bool              = False
+    # Typography settings
+    kerning:         bool              = True     # enable kerning
+    ligatures:       bool              = True     # enable ligatures
+    widow_orphan:    int               = 2        # min lines before/after break (0=off)
+    hyphenate:       bool              = False    # enable auto-hyphenation
 
     def current_section(self) -> SectionModel:
         """Return the most recent section, or a default if none exist."""

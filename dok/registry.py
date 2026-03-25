@@ -77,10 +77,23 @@ _STYLE_PROPS = {"color": _COLOR, "size": _INT, "font": _STRING}
 
 # Document structure
 register(ElementDef("doc", "doc",
-    props={"font": _STRING, "size": _INT, "spacing": PropDef("enum", choices=("compact", "tight", "normal", "relaxed"))},
+    props={
+        "font": _STRING, "size": _INT,
+        "spacing": PropDef("enum", choices=("compact", "tight", "normal", "relaxed")),
+        "kerning": _BOOL, "ligatures": _BOOL,
+        "widow-orphan": _INT, "hyphenate": _BOOL,
+    },
     handler="_handle_doc"))
 register(ElementDef("page", "page",
-    props={"margin": _MARGIN, "paper": _PAPER, "cols": _INT},
+    props={
+        "margin": _MARGIN, "paper": _PAPER, "cols": _INT,
+        # Exact margin overrides (in pt)
+        "margin-top": _INT, "margin-right": _INT,
+        "margin-bottom": _INT, "margin-left": _INT,
+        # Exact padding overrides (in pt)
+        "padding-top": _INT, "padding-right": _INT,
+        "padding-bottom": _INT, "padding-left": _INT,
+    },
     handler="_handle_page"))
 
 # Layout
@@ -92,8 +105,13 @@ register(ElementDef("rtl",     "layout"))
 register(ElementDef("ltr",     "layout"))
 register(ElementDef("indent",  "layout", props={"level": _INT}))
 register(ElementDef("row",     "layout", handler="_handle_row"))
-register(ElementDef("cols",    "layout", props={"ratio": _RATIO}, handler="_handle_cols"))
-register(ElementDef("col",     "layout", parent_must_be={"cols"}))
+register(ElementDef("cols",    "layout",
+    props={"ratio": _RATIO, "gap": _INT, "padding": _INT,
+            "border": _BOOL, "fill": _COLOR},
+    handler="_handle_cols"))
+register(ElementDef("col",     "layout",
+    props={"padding": _INT, "fill": _COLOR, "align": PropDef("enum", choices=("left", "center", "right"))},
+    parent_must_be={"cols"}))
 register(ElementDef("float",   "layout", props={"side": _ALIGN}, handler="_handle_float"))
 
 # Style
@@ -111,11 +129,11 @@ register(ElementDef("span",      "style", props={"bold": _BOOL, "italic": _BOOL,
 # Block content
 _BLOCK_PROPS = {"color": _COLOR, "size": _INT,
                 "spacing": PropDef("enum", choices=("compact", "tight", "normal", "relaxed")),
-                "line-height": _INT}
+                "line-height": _INT, "id": _STRING}
 for _name in ("h1", "h2", "h3", "h4", "p"):
     register(ElementDef(_name, "block", props=dict(_BLOCK_PROPS)))
-register(ElementDef("quote", "block"))
-register(ElementDef("code",  "block"))
+register(ElementDef("quote", "block", props={"id": _STRING}))
+register(ElementDef("code",  "block", props={"id": _STRING}))
 
 # Containers — box is the universal container (banner/callout/badge are variants)
 _BOX_PROPS = {
@@ -147,9 +165,17 @@ register(ElementDef("li", "list", parent_must_be={"ul", "ol"}))
 register(ElementDef("table", "table",
     props={"border": _BOOL, "striped": _BOOL},
     handler="_emit_data_table"))
-register(ElementDef("tr", "table", parent_must_be={"table"}))
-register(ElementDef("td", "table", props={"colspan": _INT}, parent_must_be={"tr"}))
-register(ElementDef("th", "table", props={"colspan": _INT}, parent_must_be={"tr"}))
+_DIR = PropDef("enum", choices=("rtl", "ltr"))
+_CELL_ALIGN = PropDef("enum", choices=("left", "center", "right"))
+register(ElementDef("tr", "table",
+    props={"align": _CELL_ALIGN, "direction": _DIR},
+    parent_must_be={"table"}))
+register(ElementDef("td", "table",
+    props={"colspan": _INT, "align": _CELL_ALIGN, "direction": _DIR, "fill": _COLOR},
+    parent_must_be={"tr"}))
+register(ElementDef("th", "table",
+    props={"colspan": _INT, "align": _CELL_ALIGN, "direction": _DIR, "fill": _COLOR},
+    parent_must_be={"tr"}))
 
 # Inline / meta
 register(ElementDef("img", "inline",
@@ -166,6 +192,14 @@ register(ElementDef("header", "meta",
 register(ElementDef("footer", "meta",
     parent_must_be={"doc", "page"},
     handler="_emit_footer"))
+
+# Navigation / references
+register(ElementDef("toc", "meta",
+    props={"depth": _INT, "title": _STRING},
+    handler="_emit_toc"))
+register(ElementDef("ref", "inline",
+    props={"to": PropDef("string", required=True)},
+    handler="_emit_ref"))
 
 # Special
 register(ElementDef("---", "special", handler="_handle_page_break"))

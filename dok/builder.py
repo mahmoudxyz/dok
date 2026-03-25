@@ -426,3 +426,13 @@ def footer(*children: Node | str | None) -> ElementNode:
 def space(size: int = 12) -> ElementNode:
     """Vertical spacer (size in points)."""
     return _node("space", size=size)
+
+
+def toc(depth: int = 4, title: str = "Table of Contents") -> ElementNode:
+    """Table of contents — auto-populated from headings."""
+    return _node("toc", depth=depth, title=title)
+
+
+def ref(to: str, *children, **props) -> ElementNode:
+    """Internal reference — link to a bookmark by id."""
+    return _node("ref", *children, to=to, **props)

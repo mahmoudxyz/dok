@@ -31,6 +31,7 @@ from .models import (
     LineModel, BoxModel,
     DataTableModel, DataTableRowModel, DataTableCellModel,
     ImageModel, SpacerModel, HeaderModel, FooterModel,
+    TocModel, TocEntry,
     SPACING_PRESETS,
 )
 
@@ -83,7 +84,13 @@ class HtmlWriter:
 
     def _build_html(self) -> str:
         section = self._model.sections[-1] if self._model.sections else SectionModel()
-        margins = MARGIN_PRESETS_PX.get(section.margin, MARGIN_PRESETS_PX["normal"])
+        base_margins = dict(MARGIN_PRESETS_PX.get(section.margin, MARGIN_PRESETS_PX["normal"]))
+        # Apply exact margin overrides (twips → px)
+        if section.margin_top    is not None: base_margins["top"]    = round(twip_to_px(section.margin_top))
+        if section.margin_right  is not None: base_margins["right"]  = round(twip_to_px(section.margin_right))
+        if section.margin_bottom is not None: base_margins["bottom"] = round(twip_to_px(section.margin_bottom))
+        if section.margin_left   is not None: base_margins["left"]   = round(twip_to_px(section.margin_left))
+        margins = base_margins
         max_w   = PAPER_MAX_WIDTH_PX.get(section.paper, PAPER_MAX_WIDTH_PX["a4"])
         content_w = max_w - margins["left"] - margins["right"]
 
@@ -170,6 +177,13 @@ body {{
   line-height: {line_height};
   background: #f0f0f0;
   color: #000;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  font-kerning: {'auto' if self._model.kerning else 'none'};
+  font-variant-ligatures: {'common-ligatures' if self._model.ligatures else 'no-common-ligatures'};
+  {f'hyphens: auto; -webkit-hyphens: auto; hyphenate-limit-lines: 3;' if self._model.hyphenate else ''}
+  orphans: {self._model.widow_orphan};
+  widows: {self._model.widow_orphan};
 }}
 
 /* ---- Page shell ---- */
@@ -243,12 +257,9 @@ p:last-child {{ margin-bottom: 0; }}
 /* ---- Box ---- */
 .doc-box {{
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px 16px;
   margin-bottom: 8px;
 }}
-
-/* ---- Banner ---- */
-.doc-banner {{ margin-bottom: 4px; }}
 
 /* ---- Badge ---- */
 .doc-badge {{ display: inline-block; padding: 1px 6px; margin: 4px 0; font-size: 0.85em; }}
@@ -328,6 +339,14 @@ li {{ margin-bottom: 2px; }}
 a {{ color: #0563C1; text-decoration: underline; }}
 a:hover {{ color: #033E8F; }}
 
+/* ---- Table of Contents ---- */
+.toc {{ margin-bottom: 16px; }}
+.toc-title {{ font-size: 1.4em; font-weight: bold; margin-bottom: 8px; color: #1F3864; }}
+.toc-list {{ list-style: none; padding: 0; }}
+.toc-list li {{ padding: 3px 0; }}
+.toc-list a {{ color: #0563C1; text-decoration: none; }}
+.toc-list a:hover {{ text-decoration: underline; }}
+
 @media print {{
   body      {{ background: white; }}
   .doc-body {{ box-shadow: none; }}
@@ -398,6 +417,7 @@ a:hover {{ color: #033E8F; }}
         RowModel:       "_render_row",
         TableModel:     "_render_table",
         PageBreakModel: "_render_page_break",
+        TocModel:       "_render_toc",
     }
 
     def _render_item(self, item) -> str:
@@ -406,6 +426,20 @@ a:hover {{ color: #033E8F; }}
         if handler:
             return getattr(self, handler)(item)
         return ""
+
+    def _render_toc(self, toc: TocModel) -> str:
+        parts: list[str] = ['<nav class="toc">\n']
+        parts.append(f'<h2 class="toc-title">{html.escape(toc.title)}</h2>\n')
+        parts.append('<ul class="toc-list">\n')
+        for entry in toc.entries:
+            indent = (entry.level - 1) * 20
+            style = f' style="margin-left:{indent}px"' if indent else ""
+            parts.append(
+                f'<li{style}><a href="#{html.escape(entry.anchor)}">'
+                f'{html.escape(entry.text)}</a></li>\n'
+            )
+        parts.append('</ul>\n</nav>\n')
+        return "".join(parts)
 
     @staticmethod
     def _render_page_break(_item=None) -> str:
@@ -444,6 +478,7 @@ a:hover {{ color: #033E8F; }}
 
         style_attr  = f' style="{";".join(styles)}"' if styles else ""
         class_attr  = f' class="{css_class}"' if css_class else ""
+        id_attr     = f' id="{html.escape(para.bookmark)}"' if para.bookmark else ""
 
         inner = self._render_runs(para.runs)
 
@@ -451,7 +486,7 @@ a:hover {{ color: #033E8F; }}
         if not inner.strip():
             inner = "&nbsp;"
 
-        return f"<{tag}{class_attr}{style_attr}>{inner}</{tag}>\n"
+        return f"<{tag}{id_attr}{class_attr}{style_attr}>{inner}</{tag}>\n"
 
     def _para_style_to_tag(self, style: str) -> tuple[str, str, list[str]]:
         """Return (html_tag, css_class, extra_style_list)."""
@@ -574,17 +609,23 @@ a:hover {{ color: #033E8F; }}
         if box.inline:
             return self._render_badge_inline(box)
 
-        # Banner/callout mode: accent paragraphs (already styled by converter)
-        if box.accent and not box.rounded:
-            inner = self._render_items(box.content or [])
-            return f'<div class="doc-banner">{inner}</div>\n'
-
-        # Standard box
+        # All boxes use the same rendering path
         styles: list[str] = []
         if box.fill:
             styles.append(f"background-color:#{box.fill}")
-        if box.stroke:
+        if box.accent:
+            # Accent = thick left border, thin or no other borders
+            styles.append(f"border-left:4px solid #{box.accent}")
+            if box.stroke:
+                styles.append(f"border-right:1px solid #{box.stroke}")
+                styles.append(f"border-top:1px solid #{box.stroke}")
+                styles.append(f"border-bottom:1px solid #{box.stroke}")
+        elif box.stroke:
             styles.append(f"border:1px solid #{box.stroke}")
+        if box.rounded:
+            styles.append("border-radius:6px")
+        if box.shadow:
+            styles.append("box-shadow:0 2px 8px rgba(0,0,0,0.12)")
         if box.width_pct:
             styles.append(f"width:{box.width_pct}%")
         if box.height_pt:
@@ -623,6 +664,9 @@ a:hover {{ color: #033E8F; }}
             classes.append("border")
         cls = " ".join(classes)
 
+        # RTL table: reverse column display order
+        dir_attr = ' dir="rtl"' if table.direction == "rtl" else ""
+
         rows_html: list[str] = []
         for row_idx, row in enumerate(table.rows):
             tr_class = ""
@@ -635,12 +679,22 @@ a:hover {{ color: #033E8F; }}
             for cell in row.cells:
                 tag = "th" if row.is_header else "td"
                 colspan_attr = f' colspan="{cell.colspan}"' if cell.colspan > 1 else ""
+                # Cell-level styles
+                cell_styles: list[str] = []
+                if cell.align:
+                    cell_styles.append(f"text-align:{cell.align}")
+                if cell.direction:
+                    cell_styles.append(f"direction:{cell.direction}")
+                if cell.fill:
+                    cell_styles.append(f"background-color:#{cell.fill}")
+                style_attr = f' style="{";".join(cell_styles)}"' if cell_styles else ""
                 inner = self._render_items(cell.content or [])
-                cells_html.append(f"<{tag}{colspan_attr}>{inner or '&nbsp;'}</{tag}>")
+                cells_html.append(
+                    f"<{tag}{colspan_attr}{style_attr}>{inner or '&nbsp;'}</{tag}>")
 
             rows_html.append(f"<tr{tr_class}>{''.join(cells_html)}</tr>")
 
-        return f'<table class="{cls}">\n{"".join(rows_html)}\n</table>\n'
+        return f'<table class="{cls}"{dir_attr}>\n{"".join(rows_html)}\n</table>\n'
 
     # ------------------------------------------------------------------
     # Image
@@ -764,25 +818,43 @@ a:hover {{ color: #033E8F; }}
     # ------------------------------------------------------------------
 
     def _render_table(self, table: TableModel) -> str:
+        gap_px = round(twip_to_px(table.gap_twips)) if table.gap_twips else 0
+        pad_px = round(twip_to_px(table.cell_padding_twips)) if table.cell_padding_twips else 0
+
         rows_html: list[str] = []
         for tbl_row in table.rows:
             total_pct = sum(c.width_pct for c in tbl_row.cells) or 100
             cells_html: list[str] = []
             for cell in tbl_row.cells:
                 pct = round(cell.width_pct / total_pct * 100, 2)
+                style_parts = [f"width:{pct}%", "vertical-align:top"]
+                # Per-cell padding overrides table-level padding
+                cell_pad = round(twip_to_px(cell.padding_twips)) if cell.padding_twips else pad_px
+                if cell_pad:
+                    style_parts.append(f"padding:{cell_pad}px")
+                if cell.fill:
+                    style_parts.append(f"background:#{cell.fill}")
+                if cell.align:
+                    style_parts.append(f"text-align:{cell.align}")
                 inner = self._render_items(cell.content or [])
                 cells_html.append(
-                    f'<td style="width:{pct}%;vertical-align:top">'
+                    f'<td style="{";".join(style_parts)}">'
                     f'{inner or "&nbsp;"}</td>'
                 )
             rows_html.append(f"<tr>{''.join(cells_html)}</tr>")
 
-        border_attr = ""
+        # Table-level styles
+        table_styles: list[str] = []
         if table.border:
-            border_attr = f' style="border:1px solid #{DEFAULT_BORDER_COLOR};border-collapse:collapse"'
+            table_styles.append(f"border:1px solid #{DEFAULT_BORDER_COLOR};border-collapse:collapse")
+        if gap_px:
+            table_styles.append(f"border-spacing:{gap_px}px;border-collapse:separate")
+        if table.fill:
+            table_styles.append(f"background:#{table.fill}")
+        style_attr = f' style="{";".join(table_styles)}"' if table_styles else ""
 
         return (
-            f'<table class="layout-table"{border_attr}>\n'
+            f'<table class="layout-table"{style_attr}>\n'
             f'{"".join(rows_html)}\n'
             f'</table>\n'
         )

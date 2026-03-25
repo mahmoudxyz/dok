@@ -60,6 +60,26 @@ SETTINGS_XML = """\
 </w:settings>"""
 
 
+def build_settings_xml(*, hyphenate: bool = False) -> str:
+    """Build settings.xml with optional typography features."""
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        '<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">',
+        '  <w:defaultTabStop w:val="720"/>',
+    ]
+    if hyphenate:
+        parts.append('  <w:autoHyphenation/>')
+        parts.append('  <w:consecutiveHyphenLimit w:val="3"/>')
+        parts.append('  <w:hyphenationZone w:val="425"/>')
+    parts.append('  <w:compat>')
+    parts.append('    <w:compatSetting w:name="compatibilityMode"')
+    parts.append('      w:uri="http://schemas.microsoft.com/office/word"')
+    parts.append('      w:val="15"/>')
+    parts.append('  </w:compat>')
+    parts.append('</w:settings>')
+    return "\n".join(parts)
+
+
 # ---------------------------------------------------------------------------
 # Numbering XML (bullet + ordered lists)
 # ---------------------------------------------------------------------------

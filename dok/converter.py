@@ -21,6 +21,7 @@ from .models    import (
     DataTableModel, DataTableRowModel, DataTableCellModel,
     ImageModel, SpacerModel, HeaderModel, FooterModel,
     PageBreakModel, SectionModel, DocxModel,
+    TocModel, TocEntry,
     SPACING_PRESETS,
 )
 
@@ -31,7 +32,7 @@ __all__ = [
     "TableCellModel", "DataTableModel", "DataTableRowModel",
     "DataTableCellModel", "ImageModel", "SpacerModel", "HeaderModel",
     "FooterModel", "PageBreakModel", "SectionModel", "DocxModel",
-    "SPACING_PRESETS", "Converter",
+    "TocModel", "TocEntry", "SPACING_PRESETS", "Converter",
 ]
 
 # Backward compat alias
@@ -47,8 +48,10 @@ _INCH_TO_EMU = INCH_TO_EMU  # backward compat alias
 class Converter:
 
     def __init__(self) -> None:
-        self._model      = DocxModel()
-        self._float_next = None
+        self._model       = DocxModel()
+        self._float_next  = None
+        self._toc_entries: list[TocEntry] = []
+        self._bookmark_id = 0
 
     # ------------------------------------------------------------------
     # Public
@@ -64,12 +67,26 @@ class Converter:
             self._model.default_font    = str(doc.props.get("font", "Calibri"))
             self._model.default_size_pt = int(doc.props.get("size", 11))
             self._model.spacing         = str(doc.props.get("spacing", "normal"))
+            # Typography settings
+            if "kerning" in doc.props:
+                self._model.kerning = bool(doc.props["kerning"])
+            if "ligatures" in doc.props:
+                self._model.ligatures = bool(doc.props["ligatures"])
+            if "widow-orphan" in doc.props:
+                self._model.widow_orphan = int(doc.props["widow-orphan"])
+            if "hyphenate" in doc.props:
+                self._model.hyphenate = bool(doc.props["hyphenate"])
             nodes = doc.children
 
         para = ParaCtx()
         run  = RunCtx()
         for node in nodes:
             self._walk(node, para, run)
+
+        # Post-convert: fill TOC entries
+        for item in self._model.content:
+            if isinstance(item, TocModel):
+                item.entries = [e for e in self._toc_entries if e.level <= item.depth]
 
         return self._model
 
@@ -167,6 +184,15 @@ class Converter:
             paper =str(node.props.get("paper",  "a4")),
             cols  =int(node.props.get("cols",   1)),
         )
+        # Exact margin overrides: pt → twips (1 pt = 20 twips)
+        for side in ("top", "right", "bottom", "left"):
+            val = node.props.get(f"margin-{side}")
+            if val is not None:
+                setattr(section, f"margin_{side}", int(val) * 20)
+            pad = node.props.get(f"padding-{side}")
+            if pad is not None:
+                setattr(section, f"padding_{side}", int(pad) * 20)
+
         if self._model.sections and self._model.sections[-1].margin == "normal":
             self._model.sections[-1] = section
         else:
@@ -245,6 +271,28 @@ class Converter:
         height = int(node.props.get("size", 10))
         self._model.content.append(SpacerModel(height_twips=height * 20))
 
+    def _emit_toc(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+        depth = int(node.props.get("depth", 4))
+        title = str(node.props.get("title", "Table of Contents"))
+        # Insert a TocModel placeholder — entries are filled in post-convert
+        self._model.content.append(TocModel(depth=depth, title=title))
+
+    def _emit_ref(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
+        target = str(node.props.get("to", ""))
+        # Collect display text from children
+        text_parts: list[str] = []
+        for child in node.children:
+            if isinstance(child, TextNode):
+                text_parts.append(child.text)
+        display = "".join(text_parts) or target
+        # Create a run with internal hyperlink
+        ref_run = RunModel(text=display, hyperlink_url=f"#{target}",
+                           color="0563C1", underline=True)
+        self._model.content.append(ParagraphModel(
+            runs=[ref_run], style=para.style, align=para.align,
+            direction=para.direction,
+        ))
+
     # ------------------------------------------------------------------
     # Row
     # ------------------------------------------------------------------
@@ -272,20 +320,58 @@ class Converter:
     # ------------------------------------------------------------------
 
     def _handle_cols(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
-        ratio_str = str(node.props.get("ratio", "1:1"))
-        parts     = [int(p) for p in ratio_str.split(":")]
-        total     = sum(parts)
-        widths    = [round(p / total * 100) for p in parts]
-
         col_nodes = [c for c in node.children
                     if isinstance(c, ElementNode) and c.name == "col"]
+        n_cols = len(col_nodes) or 2
 
-        table = TableModel(border=False)
-        row   = TableRowModel()
+        # Parse ratio — default to equal distribution matching actual col count
+        ratio_str = str(node.props.get("ratio", ":".join(["1"] * n_cols)))
+        parts     = [int(p) for p in ratio_str.split(":")]
+
+        # Pad or truncate ratio to match actual col count
+        while len(parts) < n_cols:
+            parts.append(parts[-1] if parts else 1)
+        parts = parts[:n_cols]
+
+        total  = sum(parts)
+        widths = [round(p / total * 100) for p in parts]
+
+        # Ensure widths sum to exactly 100
+        diff = 100 - sum(widths)
+        if diff and widths:
+            widths[-1] += diff
+
+        gap_pt     = int(node.props.get("gap", 0))
+        padding_pt = int(node.props.get("padding", 0))
+        fill       = node.props.get("fill")
+        border     = bool(node.props.get("border", False))
+
+        table = TableModel(
+            border=border,
+            gap_twips=gap_pt * 20,
+            cell_padding_twips=padding_pt * 20,
+            fill=resolve_color(str(fill)) if fill else None,
+        )
+        row = TableRowModel()
         for i, col_node in enumerate(col_nodes):
-            pct  = widths[i] if i < len(widths) else 100 // len(col_nodes)
-            cell = TableCellModel(width_pct=pct)
-            cell.content = self._sub_convert(col_node.children, para, run)
+            pct = widths[i] if i < len(widths) else 100 // n_cols
+            col_padding = int(col_node.props.get("padding", 0))
+            col_fill    = col_node.props.get("fill")
+            col_align   = col_node.props.get("align")
+
+            cell = TableCellModel(
+                width_pct=pct,
+                padding_twips=col_padding * 20,
+                fill=resolve_color(str(col_fill)) if col_fill else None,
+                align=str(col_align) if col_align else None,
+            )
+
+            # Apply column-level alignment to child context
+            col_para = para
+            if col_align:
+                col_para = para.with_align(str(col_align))
+
+            cell.content = self._sub_convert(col_node.children, col_para, run)
             row.cells.append(cell)
         table.rows.append(row)
         self._model.content.append(table)
@@ -330,12 +416,28 @@ class Converter:
         runs  = self._collect_runs(node.children, run, para.direction)
         runs  = self._merge_runs(runs)
 
-        self._model.content.append(ParagraphModel(
+        # Bookmark: explicit id prop or auto-generated for headings
+        bookmark = None
+        explicit_id = node.props.get("id")
+        if explicit_id:
+            bookmark = str(explicit_id)
+        elif name in ("h1", "h2", "h3", "h4"):
+            self._bookmark_id += 1
+            bookmark = f"_heading_{self._bookmark_id}"
+
+        para_model = ParagraphModel(
             runs=runs, style=para.style, align=para.align,
             direction=para.direction, indent_twips=para.indent_twips(),
             space_before=para.space_before, space_after=para.space_after,
-            line_spacing=line_spacing,
-        ))
+            line_spacing=line_spacing, bookmark=bookmark,
+        )
+        self._model.content.append(para_model)
+
+        # Collect TOC entry for headings
+        if name in ("h1", "h2", "h3", "h4") and bookmark:
+            level = int(name[1])
+            text = "".join(r.text for r in runs)
+            self._toc_entries.append(TocEntry(text=text, level=level, anchor=bookmark))
 
     # ------------------------------------------------------------------
     # Line
@@ -356,7 +458,8 @@ class Converter:
 
     # Per-variant default overrides (convention over configuration)
     _BOX_DEFAULTS: dict[str, dict[str, Any]] = {
-        "callout": {"fill": "FFF2CC", "stroke": "FFC000"},
+        "callout": {"fill": "FFF8E1", "stroke": "FFB300", "accent": "FFB300"},
+        "banner":  {"fill": "E8EAF6", "stroke": "3F51B5", "accent": "3F51B5"},
         "badge":   {"fill": "1F3864", "color": "FFFFFF", "inline": True},
     }
 
@@ -383,20 +486,9 @@ class Converter:
             ))
             return
 
-        # Banner/callout: accent border on paragraphs
+        # All boxes (including callout/banner) use the same rendering path
         box_run = run.with_color(color) if color else run
         content = self._sub_convert_mixed(node.children, para, box_run)
-
-        if accent or node.name in ("callout", "banner"):
-            border_color = accent or stroke
-            for item in content:
-                if isinstance(item, ParagraphModel):
-                    if fill:
-                        item.shading = fill
-                    item.border_left = border_color
-                    item.border_left_sz = 48 if node.name == "banner" else 24
-                    if node.name == "callout":
-                        item.indent_twips = max(item.indent_twips, 180)
 
         self._model.content.append(BoxModel(
             content=content, fill=fill, stroke=stroke, accent=accent,
@@ -451,22 +543,41 @@ class Converter:
         table = DataTableModel(
             border=bool(props.get("border", True)),
             striped=bool(props.get("striped", False)),
+            direction=para.direction,
         )
 
         for child in node.children:
             if isinstance(child, ElementNode) and child.name == "tr":
                 row = DataTableRowModel()
                 has_th = False
+                # Row-level overrides
+                row_align = child.props.get("align")
+                row_dir   = child.props.get("direction")
                 for cell_node in child.children:
                     if isinstance(cell_node, ElementNode) and cell_node.name in ("td", "th"):
                         is_th = (cell_node.name == "th")
                         if is_th: has_th = True
                         colspan = int(cell_node.props.get("colspan", 1))
+
+                        # Cell-level overrides → row-level → parent context
+                        cell_dir   = str(cell_node.props.get("direction", row_dir or ""))
+                        cell_align = str(cell_node.props.get("align", row_align or ""))
+                        cell_fill  = cell_node.props.get("fill")
+
+                        cell_para = para
+                        if cell_dir:
+                            cell_para = cell_para.with_direction(cell_dir)
+                        if cell_align:
+                            cell_para = cell_para.with_align(cell_align)
+
                         cell_run = run.with_bold() if is_th else run
                         cell_content = self._sub_convert_mixed(
-                            cell_node.children, para, cell_run)
+                            cell_node.children, cell_para, cell_run)
                         row.cells.append(DataTableCellModel(
                             content=cell_content, is_th=is_th, colspan=colspan,
+                            align=cell_align or None,
+                            direction=cell_dir or None,
+                            fill=resolve_color(str(cell_fill)) if cell_fill else None,
                         ))
                 row.is_header = has_th
                 table.rows.append(row)

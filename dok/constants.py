@@ -2,7 +2,7 @@
 dok.constants
 ~~~~~~~~~~~~~
 Shared unit conversions, margin/paper presets, and common values
-used by converter, docx_writer, and html_writer.
+used by converter and docx_writer.
 """
 
 from __future__ import annotations
@@ -33,14 +33,6 @@ MARGIN_PRESETS = {
     "none":   {"top":    0, "right":    0, "bottom":    0, "left":    0},
 }
 
-# Margin presets in CSS px (hand-tuned for good screen rendering)
-MARGIN_PRESETS_PX = {
-    "normal": {"top": 96, "right": 96, "bottom": 96, "left": 96},
-    "narrow": {"top": 48, "right": 48, "bottom": 48, "left": 48},
-    "wide":   {"top": 96, "right": 192, "bottom": 96, "left": 192},
-    "none":   {"top":  0, "right":   0, "bottom":  0, "left":   0},
-}
-
 
 # ---------------------------------------------------------------------------
 # Paper sizes (twips: width, height)
@@ -50,13 +42,6 @@ PAPER_SIZES = {
     "a4":     (11906, 16838),
     "letter": (12240, 15840),
     "a3":     (16838, 23811),
-}
-
-# Approximate content widths in CSS px (hand-tuned for screen rendering)
-PAPER_MAX_WIDTH_PX = {
-    "a4":     794,
-    "letter": 816,
-    "a3":     1123,
 }
 
 

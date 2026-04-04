@@ -1,6 +1,6 @@
 # dok
 
-**Document markup language for AI and humans, compiles to DOCX and HTML.**
+**Document markup language for AI and humans, compiles to DOCX.**
 
 Write structure. Let AI fill it. Compile to anything.
 
@@ -58,14 +58,11 @@ doc(font: Calibri, size: 11) {
 }
 ```
 
-Compile it to any format:
+Compile it:
 
 ```bash
 python -m dok invoice.dok invoice.docx    # Word document
-python -m dok invoice.dok invoice.html    # Web / email
 ```
-
-Same source. Every format. No reformatting.
 
 ---
 
@@ -116,10 +113,10 @@ No manual bidi tags. No XML ordering bugs. No post-processing. It compiles corre
 
 | Tool | What it does | Price | Dok equivalent |
 |------|-------------|-------|----------------|
-| DocRaptor | HTML → PDF API | $15–200/month | `dok.to_pdf()` |
+| DocRaptor | HTML → PDF API | $15–200/month | `dok.to_docx()` |
 | Carbone | Template → DOCX/PDF | $49–299/month | `dok.to_docx()` |
-| PDFMonkey | Template → PDF | $19–149/month | `dok.to_pdf()` |
-| Docmosis | Enterprise doc generation | $150+/month | All of the above |
+| PDFMonkey | Template → PDF | $19–149/month | `dok.to_docx()` |
+| Docmosis | Enterprise doc generation | $150+/month | `dok.to_docx()` |
 
 Open source. No API key. No per-document pricing. Runs locally or on your own server.
 
@@ -159,10 +156,7 @@ def generate_document(prompt: str, output_path: str):
     source = response.content[0].text
     node = dok.parse(source)
 
-    if output_path.endswith(".docx"):
-        dok.to_docx(node, output_path)
-    elif output_path.endswith(".html"):
-        dok.to_html(node, output_path)
+    dok.to_docx(node, output_path)
 
 generate_document(
     "Invoice for Alice. Consulting 3 days at $300/day. Design 1 day at $400. Show total.",
@@ -186,7 +180,6 @@ pip install dok
 
 ```bash
 python -m dok report.dok report.docx      # compile to Word
-python -m dok report.dok report.html      # compile to HTML
 python -m dok --check report.dok          # validate only
 python -m dok --tree report.dok           # print node tree
 ```
@@ -198,7 +191,6 @@ import dok
 
 node = dok.parse('doc { h1 { "Hello World" } }')
 dok.to_docx(node, "hello.docx")
-dok.to_html(node, "hello.html")
 ```
 
 ---
@@ -262,7 +254,7 @@ doc = dok.doc(
 )
 ```
 
-Both options compile to the same DOCX and HTML output.
+Both options compile to the same DOCX output.
 
 ---
 
@@ -270,7 +262,7 @@ Both options compile to the same DOCX and HTML output.
 
 | Category | Features |
 |----------|----------|
-| **Output** | `.docx` (Word), `.html` (standalone) |
+| **Output** | `.docx` (Word) |
 | **Text** | Headings (h1–h4), paragraphs, block quotes, code blocks |
 | **Strings** | Single-line `"..."`, multiline `"""..."""` with auto-dedent |
 | **Styles** | Bold, italic, underline, strikethrough, superscript, subscript, color, font, size, highlight |
@@ -300,7 +292,9 @@ Both options compile to the same DOCX and HTML output.
 
 ## Syntax
 
-One rule for every node in the language:
+Two ways to write dok — **full syntax** for complex layouts and **markdown sugar** for quick content:
+
+### Full syntax
 
 ```
 name(props) { children }    // node with props and children
@@ -314,18 +308,72 @@ name(props)                 // self-closing node
 let x = "value"             // variable assignment
 each item in list { ... }   // loop
 if expr { ... }             // conditional
-$variable                   // variable interpolation
 ```
+
+### Markdown sugar (new)
+
+For quick content, use familiar markdown shortcuts:
+
+```
+# Heading 1                 // → h1 "Heading 1"
+## Heading 2                // → h2 "Heading 2"
+### Heading 3               // → h3 "Heading 3"
+#### Heading 4              // → h4 "Heading 4"
+
+- Bullet item               // → ul { li { "Bullet item" } }
+* Also a bullet             // → ul { li { "Also a bullet" } }
+
+1. Numbered item            // → ol { li { "Numbered item" } }
+2. Second item              // → ol { li { "Second item" } }
+
+> Block quote               // → quote { "Block quote" }
+```
+
+Inline sugar works inside quoted strings:
+
+```
+p { "Hello **bold** and *italic* text" }
+p { "Visit [Google](https://google.com) now" }
+p { "Use ~~old~~ __new__ syntax" }
+```
+
+| Pattern | Result |
+|---------|--------|
+| `**text**` | bold |
+| `*text*` | italic |
+| `~~text~~` | strikethrough |
+| `__text__` | underline |
+| `` `text` `` | code |
+| `[text](url)` | hyperlink |
+
+Sugar and full syntax mix freely — use sugar for simple content, full syntax for complex layouts.
+
+### Props
 
 Props are always `key: value` pairs or bare flags:
 
 ```
 fill: navy          // named color
 fill: #4472C4       // hex color
-size: 14            // number
+size: 14            // number (default unit: pt)
+size: 2.54cm        // with unit suffix
 src: "image.png"    // string value
 rounded             // bare flag (boolean true)
 ```
+
+### Units
+
+All numeric properties accept optional unit suffixes:
+
+| Unit | Description | Example |
+|------|-------------|---------|
+| `pt` | Points (default) | `margin-top: 72` or `72pt` |
+| `cm` | Centimeters | `margin-top: 2.54cm` |
+| `mm` | Millimeters | `margin-top: 25.4mm` |
+| `in` | Inches | `margin-top: 1in` |
+| `px` | Pixels (96 DPI) | `width: 200px` |
+
+If no unit is specified, `pt` (points) is assumed. 72pt = 1 inch = 2.54cm.
 
 **Multiline strings** use triple quotes with automatic leading-indentation removal:
 

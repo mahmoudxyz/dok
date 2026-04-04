@@ -1,7 +1,7 @@
 """
 dok.writer_utils
 ~~~~~~~~~~~~~~~~
-Shared utilities for docx_writer and html_writer.
+Shared utilities for docx_writer.
 """
 
 from __future__ import annotations

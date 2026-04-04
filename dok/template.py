@@ -82,6 +82,14 @@ def _resolve_node(node: Node, scope: dict[str, Any]) -> list[Node]:
         return [TextNode(text=new_text, loc=node.loc)]
 
     if isinstance(node, ElementNode):
+        # If element name matches a scope variable and has no props/children,
+        # replace with a TextNode (e.g. `item` inside `each item in items`)
+        if (node.name in scope
+                and not node.props
+                and not node.children):
+            val = scope[node.name]
+            return [TextNode(text=str(val), loc=node.loc)]
+
         # Substitute in props
         new_props = {}
         for k, v in node.props.items():

@@ -19,7 +19,7 @@ from .builder import (
     checkbox, text_input, dropdown, option,
 )
 from .nodes import Node, ElementNode, TextNode, ArrowNode, FunctionDefNode
-from .api import parse, to_docx, to_bytes, to_html
+from .api import parse, to_docx, to_bytes
 from .errors import (
     DokError, LexError, ParseError, ResolveError,
     ValidationError, ValidationErrors,

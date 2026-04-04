@@ -117,7 +117,11 @@ class Parser:
             return tok.value
         if tok.type == "NUMBER":
             self._consume("NUMBER")
-            return int(tok.value)
+            raw = tok.value
+            has_unit = any(raw.endswith(u) for u in ("pt", "cm", "mm", "in", "px", "emu", "twip"))
+            if has_unit or "." in raw:
+                return raw
+            return int(raw)
         if tok.type == "NAME":
             self._consume("NAME")
             # Could be a boolean
@@ -359,7 +363,18 @@ class Parser:
 
         if tok.type == "NUMBER":
             self._consume("NUMBER")
-            n1 = int(tok.value)
+            raw = tok.value
+            # Check if it has a unit suffix or decimal point — keep as string
+            has_unit = any(raw.endswith(u) for u in ("pt", "cm", "mm", "in", "px", "emu", "twip"))
+            has_decimal = "." in raw
+            if has_unit or has_decimal:
+                # Return as string so units.py can parse it
+                # But first check for ratio syntax
+                if self._peek_type("COLON") and self._peek(1).type == "NUMBER":
+                    # Ratio not supported with unit-suffixed numbers
+                    pass
+                return raw
+            n1 = int(raw)
             # Handle ratio values: 2:1  or  1:1:1  (any number of parts)
             if self._peek_type("COLON") and self._peek(1).type == "NUMBER":
                 parts = [n1]
@@ -379,8 +394,27 @@ class Parser:
             tok,
         )
 
-    def _parse_text(self) -> TextNode:
+    def _parse_text(self) -> TextNode | ElementNode:
         tok = self._consume("STRING")
+        # Check for inline sugar (**bold**, *italic*, etc.)
+        from .sugar import desugar_inline
+        expanded = desugar_inline(tok.value)
+        if expanded:
+            # Re-parse the expanded inline sugar as a sequence of nodes
+            # Wrap in a temporary container to parse multiple nodes
+            from .lexer import Lexer
+            try:
+                sub_tokens = Lexer(expanded).tokenize()
+                sub_parser = Parser(sub_tokens)
+                sub_nodes = sub_parser.parse()
+                if len(sub_nodes) == 1:
+                    return sub_nodes[0]
+                # Multiple nodes: wrap in a span element
+                return ElementNode(
+                    name="span", props={}, children=sub_nodes, loc=tok.loc,
+                )
+            except Exception:
+                pass  # Fall through to plain text
         return TextNode(text=tok.value, loc=tok.loc)
 
     # ------------------------------------------------------------------

@@ -58,7 +58,6 @@ def main() -> None:
         import dok
         node = dok.parse(source, base_dir=input_path.parent)
     except ValidationErrors as e:
-        # Multiple errors — print them all
         print(f"Validation failed for {input_path}:", file=sys.stderr)
         for err in e.errors:
             print(f"  {err}", file=sys.stderr)
@@ -78,31 +77,7 @@ def main() -> None:
 
     # --- Write ---
     output_path = Path(args.output) if args.output else input_path.with_suffix(".docx")
-    if str(output_path).endswith("docx"):
-        process_docx(node, output_path, input_path)
-    
-    elif str(output_path).endswith("html"):
-        process_html(node, output_path, input_path)
 
-    
-    
-    
-def process_html(node, output_path, input_path):
-    from dok.errors import DokError
-    try:
-        import dok
-        dok.to_html(node, output_path, base_dir=input_path.parent)
-        print(f"Written: {output_path}")
-    except DokError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-
-
-def process_docx(node, output_path, input_path):
-    from dok.errors import DokError
     try:
         import dok
         dok.to_docx(node, output_path, base_dir=input_path.parent)

@@ -140,11 +140,14 @@ class _Ctx:
                               hint="Use a named color (red, navy, gold, ...) or hex (#FF0000, #ABC).")
 
         elif ptype == "int":
-            if not isinstance(value, int):
-                try:
-                    int(value)
-                except (ValueError, TypeError):
-                    self._err(f"'{elem_name}.{key}' must be an integer, got '{value}'", loc=loc)
+            if not isinstance(value, (int, float)):
+                # Allow unit-suffixed values (e.g. "12pt", "2.5cm")
+                import re
+                if not re.match(r'^-?\d+(?:\.\d+)?(?:pt|cm|mm|in|px|emu|twip)?$', str(value), re.I):
+                    try:
+                        int(value)
+                    except (ValueError, TypeError):
+                        self._err(f"'{elem_name}.{key}' must be a number (optionally with unit: pt, cm, mm, in, px), got '{value}'", loc=loc)
 
         elif ptype == "bool":
             if value not in (True, False, "true", "false"):

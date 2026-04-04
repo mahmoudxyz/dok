@@ -8,7 +8,7 @@ This guide explains the codebase architecture so you can understand, debug, and 
 dok/
 ├── __init__.py        # Public API re-exports
 ├── __main__.py        # CLI entry point
-├── api.py             # Pipeline glue: parse(), to_docx(), to_html(), to_bytes()
+├── api.py             # Pipeline glue: parse(), to_docx(), to_bytes()
 ├── lexer.py           # Source → tokens
 ├── parser.py          # Tokens → AST (node tree)
 ├── resolver.py        # Import resolution + function expansion
@@ -19,11 +19,12 @@ dok/
 ├── converter.py       # AST → DocxModel (intermediate representation)
 ├── models.py          # DocxModel dataclasses (ParagraphModel, BoxModel, etc.)
 ├── docx_writer.py     # DocxModel → .docx (OOXML ZIP)
-├── html_writer.py     # DocxModel → .html
 ├── docx_styles.py     # OOXML style XML generation
 ├── docx_packaging.py  # OOXML packaging (namespaces, content types, rels)
 ├── xml_writer.py      # Low-level XML writer (shared by docx_writer)
-├── constants.py       # Unit conversions, margins, paper sizes
+├── units.py           # Unit parsing and conversion (pt, cm, mm, in, px)
+├── sugar.py           # Markdown-style syntax sugar preprocessor
+├── constants.py       # Margin/paper presets, common values
 ├── colors.py          # Named color resolution
 ├── writer_utils.py    # Shared writer helpers
 ├── image.py           # Image dimension reading
@@ -40,13 +41,15 @@ Every document flows through this pipeline:
 ```
 source string
     ↓
+  desugar        (sugar.py)        markdown sugar → standard dok
+    ↓
   Lexer          (lexer.py)        string → Token[]
     ↓
   Parser         (parser.py)       Token[] → Node[]
     ↓
   resolve_imports (resolver.py)    inline imported files
     ↓
-  resolve_templates (template.py)  expand let/each/if, substitute $vars
+  resolve_templates (template.py)  expand let/each/if, substitute vars
     ↓
   resolve        (resolver.py)     expand function defs/calls
     ↓
@@ -54,8 +57,7 @@ source string
     ↓
   Converter      (converter.py)    Node[] → DocxModel
     ↓
-  Writer         (docx_writer.py   DocxModel → .docx
-                  html_writer.py)  DocxModel → .html
+  DocxWriter     (docx_writer.py)  DocxModel → .docx
 ```
 
 The builder API (`dok.h1()`, `dok.p()`, etc.) produces the same Node tree that the parser does, then feeds it through the same converter and writer.

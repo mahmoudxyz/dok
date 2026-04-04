@@ -78,7 +78,7 @@ class Lexer:
         ("ARROW",     r"->"),
         ("OP",        r"[!=<>]=|[<>+*/]"),   # ==, !=, <=, >=, <, >, +, *, /
         ("COLOR",     r"#[0-9a-fA-F]{3,6}"),
-        ("NUMBER",    r"\d+"),
+        ("NUMBER",    r"\d+(?:\.\d+)?(?:pt|cm|mm|in|px|emu|twip)?"),
         ("STRING",    r'"(?:[^"\\]|\\.)*"'),
         ("LPAREN",    r"\("),
         ("RPAREN",    r"\)"),

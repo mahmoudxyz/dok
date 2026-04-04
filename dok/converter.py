@@ -15,6 +15,7 @@ from . import registry
 from .context import ParaCtx, RunCtx
 from .colors    import resolve as resolve_color
 from .constants import INCH_TO_EMU
+from .units     import parse_to_twips, parse_to_emu, parse_to_pt
 from .models    import (
     RunModel, ParagraphModel, LineModel, BoxModel, BannerModel, BadgeModel,
     ShapeModel, RowModel, TableModel, TableRowModel, TableCellModel,
@@ -190,14 +191,14 @@ class Converter:
             paper =str(node.props.get("paper",  "a4")),
             cols  =int(node.props.get("cols",   1)),
         )
-        # Exact margin overrides: pt → twips (1 pt = 20 twips)
+        # Exact margin overrides — supports units (pt, cm, mm, in)
         for side in ("top", "right", "bottom", "left"):
             val = node.props.get(f"margin-{side}")
             if val is not None:
-                setattr(section, f"margin_{side}", int(val) * 20)
+                setattr(section, f"margin_{side}", parse_to_twips(val))
             pad = node.props.get(f"padding-{side}")
             if pad is not None:
-                setattr(section, f"padding_{side}", int(pad) * 20)
+                setattr(section, f"padding_{side}", parse_to_twips(pad))
 
         if self._model.sections and self._model.sections[-1].margin == "normal":
             self._model.sections[-1] = section
@@ -274,8 +275,8 @@ class Converter:
         self._model.content.append(PageBreakModel())
 
     def _emit_spacer(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
-        height = int(node.props.get("size", 10))
-        self._model.content.append(SpacerModel(height_twips=height * 20))
+        raw = node.props.get("size", 10)
+        self._model.content.append(SpacerModel(height_twips=parse_to_twips(raw)))
 
     def _emit_toc(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
         depth = int(node.props.get("depth", 4))
@@ -347,27 +348,28 @@ class Converter:
         if diff and widths:
             widths[-1] += diff
 
-        gap_pt     = int(node.props.get("gap", 0))
-        padding_pt = int(node.props.get("padding", 0))
+        gap_raw    = node.props.get("gap", 0)
+        padding_raw = node.props.get("padding", 0)
         fill       = node.props.get("fill")
         border     = bool(node.props.get("border", False))
 
         table = TableModel(
             border=border,
-            gap_twips=gap_pt * 20,
-            cell_padding_twips=padding_pt * 20,
+            gap_twips=parse_to_twips(gap_raw),
+            cell_padding_twips=parse_to_twips(padding_raw),
             fill=resolve_color(str(fill)) if fill else None,
         )
         row = TableRowModel()
         for i, col_node in enumerate(col_nodes):
             pct = widths[i] if i < len(widths) else 100 // n_cols
-            col_padding = int(col_node.props.get("padding", 0))
+            col_padding_raw = col_node.props.get("padding", 0)
             col_fill    = col_node.props.get("fill")
             col_align   = col_node.props.get("align")
 
+            col_padding_twips = parse_to_twips(col_padding_raw)
             cell = TableCellModel(
                 width_pct=pct,
-                padding_twips=col_padding * 20,
+                padding_twips=col_padding_twips,
                 fill=resolve_color(str(col_fill)) if col_fill else None,
                 align=str(col_align) if col_align else None,
             )
@@ -382,11 +384,12 @@ class Converter:
             section = self._model.sections[-1] if self._model.sections else SectionModel()
             cw = content_width_twip(section.paper,
                                     margins=section.resolved_margins(MARGIN_PRESETS))
-            total_gap = gap_pt * 20 * max(0, n_cols - 1)
+            gap_twips = parse_to_twips(gap_raw)
+            total_gap = gap_twips * max(0, n_cols - 1)
             usable_w = cw - total_gap
             total_pct_sum = sum(widths)
             cell_w_twips = int(usable_w * pct / total_pct_sum) if total_pct_sum else usable_w // n_cols
-            cell_inner = max(0, cell_w_twips - col_padding * 20 * 2 - padding_pt * 20 * 2)
+            cell_inner = max(0, cell_w_twips - col_padding_twips * 2 - parse_to_twips(padding_raw) * 2)
 
             cell.content = self._sub_convert(col_node.children, col_para, run,
                                              available_width=cell_inner)
@@ -725,30 +728,35 @@ class Converter:
     def _emit_image(self, node: ElementNode, para: ParaCtx = None, run: RunCtx = None) -> None:
         props = node.props
         src   = str(props.get("src", ""))
-        width_in  = int(props.get("width", 4))
-        height_in = int(props.get("height", 0))
+        raw_w = props.get("width", 300)    # default 300pt (~4.17 inches)
+        raw_h = props.get("height", 0)
 
-        if height_in == 0:
-            height_in = self._auto_image_height(src, width_in)
+        width_emu = parse_to_emu(raw_w)
+        height_emu = parse_to_emu(raw_h) if raw_h else 0
+
+        if height_emu == 0:
+            height_emu = self._auto_image_height(src, width_emu)
 
         self._model.content.append(ImageModel(
             src=src,
-            width_emu=width_in * _INCH_TO_EMU,
-            height_emu=height_in * _INCH_TO_EMU,
-            align=para.align,
+            width_emu=width_emu,
+            height_emu=height_emu,
+            align=para.align if para else "left",
         ))
 
-    def _auto_image_height(self, src: str, width_in: int) -> int:
+    def _auto_image_height(self, src: str, width_emu: int) -> int:
+        """Calculate height EMU from actual image aspect ratio."""
         try:
             from .image import image_dimensions
             base = self._model.base_dir
             path = (base / src) if base else Path(src)
             w, h = image_dimensions(path)
             if w > 0 and h > 0:
-                return int(width_in * h / w)
+                return int(width_emu * h / w)
         except Exception:
             pass
-        return width_in
+        # Fallback: assume square
+        return width_emu
 
     # ------------------------------------------------------------------
     # Hyperlink
@@ -797,16 +805,14 @@ class Converter:
 
     def _emit_frame(self, node: ElementNode, para: ParaCtx, run: RunCtx) -> None:
         props = node.props
-        x_pt = int(props.get("x", 0))
-        y_pt = int(props.get("y", 0))
-        w_pt = int(props.get("width", 200))
-        h_pt = int(props.get("height", 100))
         fill = resolve_color(str(props["fill"])) if "fill" in props else None
         stroke = resolve_color(str(props["stroke"])) if "stroke" in props else None
         content = self._sub_convert_mixed(node.children, para, run)
         self._model.content.append(FrameModel(
-            x_twips=x_pt * 20, y_twips=y_pt * 20,
-            width_twips=w_pt * 20, height_twips=h_pt * 20,
+            x_twips=parse_to_twips(props.get("x", 0)),
+            y_twips=parse_to_twips(props.get("y", 0)),
+            width_twips=parse_to_twips(props.get("width", 200)),
+            height_twips=parse_to_twips(props.get("height", 100)),
             fill=fill, stroke=stroke,
             rounded=bool(props.get("rounded", False)),
             shadow=bool(props.get("shadow", False)),
